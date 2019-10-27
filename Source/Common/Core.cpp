@@ -84,8 +84,10 @@ file::file(const String& FileName)
 file::~file()
 {
     for (auto& Frame : PerFrame)
-        if (Frame->Errors)
-            delete[] Frame->Errors;
+    {
+        delete[] Frame->Errors;
+        delete[] Frame->Video_STA_Errors;
+    }
 }
 
 //***************************************************************************
@@ -102,6 +104,12 @@ void file::AddFrame(const MediaInfo_Event_DvDif_Analysis_Frame_0* FrameData)
         size_t SizeToCopy = std::strlen(FrameData->Errors) + 1;
         ToPush->Errors = new char[SizeToCopy];
         std::memcpy(ToPush->Errors, FrameData->Errors, SizeToCopy);
+    }
+    if (FrameData->Video_STA_Errors)
+    {
+        size_t SizeToCopy = 256 * sizeof(size_t);
+        ToPush->Video_STA_Errors = new size_t[SizeToCopy];
+        std::memcpy(ToPush->Video_STA_Errors, FrameData->Video_STA_Errors, SizeToCopy);
     }
     PerFrame.push_back(ToPush);
 }
@@ -339,6 +347,55 @@ string Core::OutputXml()
                 if (Frame->Errors)
                 {
                     Text += ">\n";
+
+                    // By DSeq
+                    if (Frame->Video_STA_Errors)
+                    {
+                        size_t TotalPerSta[16];
+                        memset(TotalPerSta, 0, 16 * sizeof(size_t));
+                        for (auto Dseq4 = 0; Dseq4 < 16 * 16; Dseq4 += 16)
+                        {
+                            size_t Total = 0;
+                            for (auto STA = 0; STA < 16; STA++)
+                            {
+                                auto Dseq4_STA = Dseq4 | STA;
+                                Total += Frame->Video_STA_Errors[Dseq4_STA];
+                                TotalPerSta[STA] += Frame->Video_STA_Errors[Dseq4_STA];
+                            }
+                            if (Total)
+                            {
+                                Text += "\t\t\t\t<dseq n=\"";
+                                Text += to_string(Dseq4 >> 4);
+                                Text += "\">\n";
+                                for (auto STA = 0; STA < 16; STA++)
+                                {
+                                    auto n = Frame->Video_STA_Errors[Dseq4 | STA];
+                                    if (n)
+                                    {
+                                        Text += "\t\t\t\t\t<error type=\"video error concealment ";
+                                        Text += (STA < 10 ? '0' : ('A' - 10)) + STA;
+                                        Text += "\" n=\"";
+                                        Text += to_string(n);
+                                        Text += "\"/>\n";
+                                    }
+                                }
+
+                                Text += "\t\t\t\t</dseq>\n";
+                            }
+                        }
+                        for (auto STA = 0; STA < 16; STA++)
+                        {
+                            auto n = TotalPerSta[STA];
+                            if (n)
+                            {
+                                Text += "\t\t\t\t<error type=\"video error concealment ";
+                                Text += (STA < 10 ? '0' : ('A' - 10)) + STA;
+                                Text += "\" n=\"";
+                                Text += to_string(n);
+                                Text += "\"/>\n";
+                            }
+                        }
+                    }
 
                     static const auto Errors_Text_Size = 6;
                     static const char* Errors_Text[] =
