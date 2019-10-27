@@ -338,14 +338,44 @@ string Core::OutputXml()
                 // Errors
                 if (Frame->Errors)
                 {
-                    Text += ">\n"
-                        "\t\t\t\t<errors>";
-                    Text += Frame->Errors;
-                    Text += "</errors>\n"
-                        "\t\t\t</frame>\n";
+                    Text += ">\n";
+
+                    static const auto Errors_Text_Size = 6;
+                    static const char* Errors_Text[] =
+                    {
+                        "video error concealment",
+                        "audio error code",
+                        "DV timecode incoherency",
+                        "DIF incoherency",
+                        "Arbitrary bit inconsistency",
+                        "Stts fluctuation",
+                    };
+                    const auto Errors = Frame->Errors;
+                    size_t c = 0, e = 0;
+                    for (size_t i = 0; Errors[i]; i++)
+                    {   
+                        if (Errors[i] != '\t')
+                            continue;
+
+                        if (i != c)
+                        {
+                            Text += "\t\t\t\t<error type=\"";
+                            if (e<Errors_Text_Size)
+                                Text += Errors_Text[e];
+                            else
+                                Text += to_string(e);
+                            Text += "\">";
+                            Text.append(Errors + c, i - c);
+                            Text += "</error>\n";
+                        }
+
+                        e++;
+                        c = i + 1;
+                    }
+
+                    Text += "\t\t\t</frame>\n";
                 }
-                
-                if (!Frame->Errors)
+                else
                     Text += "/>\n";
             }
         }
