@@ -20,12 +20,14 @@ class file
 {
 public:
     MediaInfo MI;
+    std::vector<MediaInfo_Event_DvDif_Change_0*> PerChange;
     std::vector<MediaInfo_Event_DvDif_Analysis_Frame_0*> PerFrame;
     float FrameRate;
 
     file(const String& FileName);
     ~file();
 
+    void AddChange(const MediaInfo_Event_DvDif_Change_0* FrameData);
     void AddFrame(const MediaInfo_Event_DvDif_Analysis_Frame_0* FrameData);
 };
 
@@ -55,7 +57,8 @@ void __stdcall Event_CallBackFunction(unsigned char* Data_Content, size_t Data_S
     case MediaInfo_Parser_DvDif:
         switch (EventID)
         {
-        case MediaInfo_Event_DvDif_Analysis_Frame: if (EventVersion == 0 && Data_Size == sizeof(struct MediaInfo_Event_DvDif_Analysis_Frame_0)) UserHandler->AddFrame((MediaInfo_Event_DvDif_Analysis_Frame_0*)Event_Generic); break;
+        case MediaInfo_Event_DvDif_Analysis_Frame: if (EventVersion == 0 && Data_Size >= sizeof(struct MediaInfo_Event_DvDif_Analysis_Frame_0)) UserHandler->AddFrame((MediaInfo_Event_DvDif_Analysis_Frame_0*)Event_Generic); break;
+        case MediaInfo_Event_DvDif_Change: if (EventVersion == 0 && Data_Size >= sizeof(struct MediaInfo_Event_DvDif_Change_0)) UserHandler->AddChange((MediaInfo_Event_DvDif_Change_0*)Event_Generic); break;
         }
         break;
     }
@@ -95,6 +98,14 @@ file::~file()
 //***************************************************************************
 
 //---------------------------------------------------------------------------
+void file::AddChange(const MediaInfo_Event_DvDif_Change_0* FrameData)
+{
+    MediaInfo_Event_DvDif_Change_0* ToPush = new MediaInfo_Event_DvDif_Change_0();
+    std::memcpy(ToPush, FrameData, sizeof(MediaInfo_Event_DvDif_Change_0));
+    PerChange.push_back(ToPush);
+}
+
+//---------------------------------------------------------------------------
 void file::AddFrame(const MediaInfo_Event_DvDif_Analysis_Frame_0* FrameData)
 {
     MediaInfo_Event_DvDif_Analysis_Frame_0* ToPush = new MediaInfo_Event_DvDif_Analysis_Frame_0();
@@ -107,7 +118,7 @@ void file::AddFrame(const MediaInfo_Event_DvDif_Analysis_Frame_0* FrameData)
     }
     if (FrameData->Video_STA_Errors)
     {
-        size_t SizeToCopy = 256 * sizeof(size_t);
+        size_t SizeToCopy = 8 * 16 * 16 * sizeof(size_t);
         ToPush->Video_STA_Errors = new size_t[SizeToCopy];
         std::memcpy(ToPush->Video_STA_Errors, FrameData->Video_STA_Errors, SizeToCopy);
     }
@@ -186,6 +197,16 @@ string Date2String(int Years, int Months, int Days)
     return Value;
 }
 
+//---------------------------------------------------------------------------
+char ToHex4(int Value)
+{
+    if (Value >= 16)
+        return 'X';
+    if (Value >= 10)
+        return 'A' - 10 + Value;
+    return '0' + Value;
+}
+
 //***************************************************************************
 // Constructor/Destructor
 //***************************************************************************
@@ -252,7 +273,6 @@ string Core::OutputXml()
 
         // Media header
         Text += "\t<media ref=\"" + Ztring(File->MI.Get(Stream_General, 0, __T("CompleteName"))).To_UTF8() + "\">\n";
-        Text += "\t\t<frames>\n";
 
         // By Frame - For each line
         auto FrameNumber_Max = File->PerFrame.size() - 1;
@@ -260,7 +280,72 @@ string Core::OutputXml()
         {
             decltype(FrameNumber_Max) FrameNumber = &Frame - &*File->PerFrame.begin();
 
-            if (Frame->Errors || FrameNumber==0 || FrameNumber + 1 == FrameNumber_Max)
+            auto ShowFrame = Frame->Video_STA_Errors || FrameNumber == 0 || FrameNumber == FrameNumber_Max;
+            auto ShowFrames = FrameNumber == 0;
+            if (!ShowFrame)
+            {
+                auto Current = File->PerChange[FrameNumber];
+                auto Previous = File->PerChange[FrameNumber - 1];
+                if (Current->Width != Previous->Width
+                    || Current->Height != Previous->Height
+                    || Current->VideoRatio_N != Previous->VideoRatio_N
+                    || Current->VideoRatio_D != Previous->VideoRatio_D
+                    || Current->VideoRate_N != Previous->VideoRate_N
+                    || Current->VideoRate_D != Previous->VideoRate_D
+                    || Current->AudioRate_N != Previous->AudioRate_N
+                    || Current->AudioRate_D != Previous->AudioRate_D
+                    || Current->AudioChannels != Previous->AudioChannels)
+                    ShowFrames = true;
+            }
+                
+            if (ShowFrames)
+            {
+                if (FrameNumber)
+                    Text += "\t\t</frames>\n";
+
+                auto Change = File->PerChange[FrameNumber];
+                Text += "\t\t<frames size=\"";
+                Text += to_string(Change->Width);
+                Text += 'x';
+                Text += to_string(Change->Height);
+                Text += '\"';
+                if (Change->VideoRate_N)
+                {
+                    Text += " video_rate=\"";
+                    Text += to_string(Change->VideoRate_N);
+                    Text += '/';
+                    Text += to_string(Change->VideoRate_D);
+                    Text += '\"';
+                }
+                if (Change->VideoRatio_N)
+                {
+                    Text += " aspect_ratio=\"";
+                    Text += to_string(Change->VideoRatio_N);
+                    Text += '/';
+                    Text += to_string(Change->VideoRatio_D);
+                    Text += '\"';
+                }
+                if (Change->AudioRate_N)
+                {
+                    Text += " audio_rate=\"";
+                    Text += to_string(Change->AudioRate_N);
+                    if (Change->AudioRate_D != 1)
+                    {
+                        Text += '/';
+                        Text += to_string(Change->AudioRate_D);
+                    }
+                    Text += '\"';
+                }
+                if (Change->AudioChannels)
+                {
+                    Text += " audio_channels=\"";
+                    Text += to_string(Change->AudioChannels);
+                    Text += '\"';
+                }
+                Text += ">\n";
+            }
+
+            if (ShowFrame)
             {
                 auto TimeStamp = FrameNumber / File->FrameRate;
 
@@ -274,15 +359,15 @@ string Core::OutputXml()
                 {
                     auto TimeCode_DropFrame = Frame->TimeCode & 0x00000080 ? true : false;
                     auto TimeCode_Frames = Frame->TimeCode & 0x3F;
-                    Text += " timecode=\"" + TimeCode2String(TimeCode_Seconds, TimeCode_DropFrame, TimeCode_Frames) + "\"";
+                    Text += " tc=\"" + TimeCode2String(TimeCode_Seconds, TimeCode_DropFrame, TimeCode_Frames) + "\"";
                 }
                 if ((Frame->TimeCode >> 31) & 0x1) // Repeat
                 {
-                    Text += " timecode_r=\"1\"";
+                    Text += " tc_r=\"1\"";
                 }
                 if ((Frame->TimeCode >> 30) & 0x1) // Non consecutive
                 {
-                    Text += " timecode_nc=\"1\"";
+                    Text += " tc_nc=\"1\"";
                 }
 
                 // RecDate/RecTime
@@ -304,22 +389,22 @@ string Core::OutputXml()
                     RecDateTime_String += TimeCode2String(RecDateTime_Seconds, RecDateTime_DropFrame, RecDateTime_Frames);
                 }
                 if (!RecDateTime_String.empty())
-                    Text += " recdatetime=\"" + RecDateTime_String + "\"";
+                    Text += " rdt=\"" + RecDateTime_String + "\"";
                 if ((Frame->RecordedDateTime1 >> 31) & 0x1) // Repeat
                 {
-                    Text += " recdatetime_r=\"1\"";
+                    Text += " rdt_r=\"1\"";
                 }
                 if ((Frame->RecordedDateTime1 >> 30) & 0x1) // Non consecutive
                 {
-                    Text += " recdatetime_nc=\"1\"";
+                    Text += " rdt_nc=\"1\"";
                 }
                 if (Frame->RecordedDateTime1&(1 << 29)) // Start
                 {
-                    Text += " recdatetime_start=\"1\"";
+                    Text += " rec_start=\"1\"";
                 }
                 if (Frame->RecordedDateTime1&(1 << 28)) // End
                 {
-                    Text += " recdatetime_end=\"1\"";
+                    Text += " rec_end=\"1\"";
                 }
 
                 // Arb
@@ -344,36 +429,77 @@ string Core::OutputXml()
                 }
 
                 // Errors
-                if (Frame->Errors)
+                if (Frame->Video_STA_Errors) //Frame->Errors)
                 {
                     Text += ">\n";
 
-                    // By DSeq
+                    // Split
                     if (Frame->Video_STA_Errors)
                     {
                         size_t TotalPerSta[16];
                         memset(TotalPerSta, 0, 16 * sizeof(size_t));
-                        for (auto Dseq4 = 0; Dseq4 < 16 * 16; Dseq4 += 16)
+                        for (auto Dseq7 = 0; Dseq7 < 16 * 128; Dseq7 += 128)
                         {
-                            size_t Total = 0;
-                            for (auto STA = 0; STA < 16; STA++)
+                            size_t TotalPerDseqPerSta[16];
+                            memset(TotalPerDseqPerSta, 0, 16 * sizeof(size_t));
+                            auto Dseq_Open = false;
+                            for (auto Sct4 = 0; Sct4 < 8 * 16; Sct4 += 16)
                             {
-                                auto Dseq4_STA = Dseq4 | STA;
-                                Total += Frame->Video_STA_Errors[Dseq4_STA];
-                                TotalPerSta[STA] += Frame->Video_STA_Errors[Dseq4_STA];
-                            }
-                            if (Total)
-                            {
-                                Text += "\t\t\t\t<dseq n=\"";
-                                Text += to_string(Dseq4 >> 4);
-                                Text += "\">\n";
+                                auto Sct_Open = false;
+                                size_t Total = 0;
                                 for (auto STA = 0; STA < 16; STA++)
                                 {
-                                    auto n = Frame->Video_STA_Errors[Dseq4 | STA];
+                                    auto Dseq7_Sct4_STA = Dseq7 | Sct4 | STA;
+                                    auto n = Frame->Video_STA_Errors[Dseq7_Sct4_STA];
+                                    Total += n;
+                                    TotalPerDseqPerSta[STA] += n;
+                                    TotalPerSta[STA] += n;
+                                }
+                                if (Total)
+                                {
+                                    if (!Dseq_Open)
+                                    {
+                                        Text += "\t\t\t\t<dseq n=\"";
+                                        Text += to_string(Dseq7 >> 7);
+                                        Text += "\">\n";
+                                        Dseq_Open = true;
+                                    }
+                                    if (!Sct_Open)
+                                    {
+                                        Text += "\t\t\t\t\t<sct t=\"";
+                                        Text += to_string(Sct4 >> 4);
+                                        Text += "\">\n";
+                                        Sct_Open = true;
+                                    }
+                                    for (auto STA = 0; STA < 16; STA++)
+                                    {
+                                        auto Dseq7_Sct4_STA = Dseq7 | Sct4 | STA;
+                                        auto n = Frame->Video_STA_Errors[Dseq7_Sct4_STA];
+                                        if (n)
+                                        {
+                                            Text += "\t\t\t\t\t\t<sta t=\"";
+                                            Text += ToHex4(STA);
+                                            Text += "\" n=\"";
+                                            Text += to_string(n);
+                                            Text += "\"/>\n";
+                                        }
+                                    }
+
+                                    if (Sct_Open)
+                                    {
+                                        Text += "\t\t\t\t\t</sct>\n";
+                                    }
+                                }
+                            }
+                            if (Dseq_Open)
+                            {
+                                for (auto STA = 0; STA < 16; STA++)
+                                {
+                                    auto n = TotalPerDseqPerSta[STA];
                                     if (n)
                                     {
-                                        Text += "\t\t\t\t\t<error type=\"video error concealment ";
-                                        Text += (STA < 10 ? '0' : ('A' - 10)) + STA;
+                                        Text += "\t\t\t\t\t<sta t=\"";
+                                        Text += ToHex4(STA);
                                         Text += "\" n=\"";
                                         Text += to_string(n);
                                         Text += "\"/>\n";
@@ -383,13 +509,14 @@ string Core::OutputXml()
                                 Text += "\t\t\t\t</dseq>\n";
                             }
                         }
+
                         for (auto STA = 0; STA < 16; STA++)
                         {
                             auto n = TotalPerSta[STA];
                             if (n)
                             {
-                                Text += "\t\t\t\t<error type=\"video error concealment ";
-                                Text += (STA < 10 ? '0' : ('A' - 10)) + STA;
+                                Text += "\t\t\t\t<sta t=\"";
+                                Text += ToHex4(STA);
                                 Text += "\" n=\"";
                                 Text += to_string(n);
                                 Text += "\"/>\n";
@@ -397,6 +524,7 @@ string Core::OutputXml()
                         }
                     }
 
+                    /*
                     static const auto Errors_Text_Size = 6;
                     static const char* Errors_Text[] =
                     {
@@ -429,6 +557,7 @@ string Core::OutputXml()
                         e++;
                         c = i + 1;
                     }
+                    */
 
                     Text += "\t\t\t</frame>\n";
                 }
