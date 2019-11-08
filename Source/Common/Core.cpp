@@ -11,6 +11,23 @@
 using namespace ZenLib;
 //---------------------------------------------------------------------------
 
+//***************************************************************************
+// Sizes
+//***************************************************************************
+
+const auto Sta_Bits = 4;
+const auto Sct_Bits = 3;
+const auto Dseq_Bits = 4;
+const auto Sta_BitPos = 0;
+const auto Sct_BitPos = Sta_BitPos + Sta_Bits;
+const auto Dseq_BitPos = Sct_BitPos + Sct_Bits;
+const auto Sta_Size = 1 << Sta_Bits;
+const auto Sct_Size = 1 << Sct_Bits;
+const auto Dseq_Size = 1 << Dseq_Bits;
+const auto Sct_Step = Sta_Size;
+const auto Dseq_Step = Sct_Size * Sct_Step;
+const auto Sct_Max = Dseq_Step;
+const auto Dseq_Max = Dseq_Size * Dseq_Step;
 
 //***************************************************************************
 // Internal
@@ -499,49 +516,49 @@ string Core::OutputXml()
                     // Split
                     if (Frame->Video_STA_Errors)
                     {
-                        size_t TotalPerSta[16];
-                        memset(TotalPerSta, 0, 16 * sizeof(size_t));
-                        for (auto Dseq7 = 0; Dseq7 < 16 * 128; Dseq7 += 128)
+                        size_t TotalPerSta[Sta_Size];
+                        memset(TotalPerSta, 0, Sta_Size * sizeof(size_t));
+                        for (auto Dseq = 0; Dseq < Dseq_Max; Dseq += Dseq_Step)
                         {
-                            size_t TotalPerDseqPerSta[16];
-                            memset(TotalPerDseqPerSta, 0, 16 * sizeof(size_t));
+                            size_t TotalPerDseqPerSta[Sta_Size];
+                            memset(TotalPerDseqPerSta, 0, Sta_Size * sizeof(size_t));
                             auto Dseq_Open = false;
-                            for (auto Sct4 = 0; Sct4 < 8 * 16; Sct4 += 16)
+                            for (auto Sct = 0; Sct < Sct_Max; Sct += Sct_Step)
                             {
                                 auto Sct_Open = false;
                                 size_t Total = 0;
-                                for (auto STA = 0; STA < 16; STA++)
+                                for (auto Sta = 0; Sta < Sta_Size; Sta++)
                                 {
-                                    auto Dseq7_Sct4_STA = Dseq7 | Sct4 | STA;
-                                    auto n = Frame->Video_STA_Errors[Dseq7_Sct4_STA];
+                                    auto Dseq_Sct_Sta = Dseq | Sct | Sta;
+                                    auto n = Frame->Video_STA_Errors[Dseq_Sct_Sta];
                                     Total += n;
-                                    TotalPerDseqPerSta[STA] += n;
-                                    TotalPerSta[STA] += n;
+                                    TotalPerDseqPerSta[Sta] += n;
+                                    TotalPerSta[Sta] += n;
                                 }
                                 if (Total)
                                 {
                                     if (!Dseq_Open)
                                     {
                                         Text += "\t\t\t\t<dseq n=\"";
-                                        Text += to_string(Dseq7 >> 7);
+                                        Text += to_string(Dseq >> Dseq_BitPos);
                                         Text += "\">\n";
                                         Dseq_Open = true;
                                     }
                                     if (!Sct_Open)
                                     {
                                         Text += "\t\t\t\t\t<sct t=\"";
-                                        Text += to_string(Sct4 >> 4);
+                                        Text += to_string(Sct >> Sct_BitPos);
                                         Text += "\">\n";
                                         Sct_Open = true;
                                     }
-                                    for (auto STA = 0; STA < 16; STA++)
+                                    for (auto Sta = 0; Sta < 16; Sta++)
                                     {
-                                        auto Dseq7_Sct4_STA = Dseq7 | Sct4 | STA;
-                                        auto n = Frame->Video_STA_Errors[Dseq7_Sct4_STA];
+                                        auto Dseq_Sct_Sta = Dseq | Sct | Sta;
+                                        auto n = Frame->Video_STA_Errors[Dseq_Sct_Sta];
                                         if (n)
                                         {
                                             Text += "\t\t\t\t\t\t<sta t=\"";
-                                            Text += to_string(STA);
+                                            Text += to_string(Sta);
                                             Text += "\" n=\"";
                                             Text += to_string(n);
                                             Text += "\"/>\n";
