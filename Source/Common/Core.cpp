@@ -22,7 +22,8 @@ public:
     MediaInfo MI;
     std::vector<MediaInfo_Event_DvDif_Change_0*> PerChange;
     std::vector<MediaInfo_Event_DvDif_Analysis_Frame_0*> PerFrame;
-    float FrameRate;
+    double FrameRate;
+    size_t FrameNumber;
 
     file(const String& FileName);
     ~file();
@@ -76,11 +77,12 @@ file::file(const String& FileName)
     MI.Open(FileName);
 
     // Filing some info
-    FrameRate = Ztring(MI.Get(Stream_Video, 0, __T("FrameRate_Original"))).To_float32();
+    FrameRate = Ztring(MI.Get(Stream_Video, 0, __T("FrameRate_Original"))).To_float64();
     if (!FrameRate)
-        FrameRate = Ztring(MI.Get(Stream_Video, 0, __T("FrameRate"))).To_float32();
-    if (!FrameRate)
-        FrameRate = float(30 / 1.001); // Default if no frame rate available
+        FrameRate = Ztring(MI.Get(Stream_Video, 0, __T("FrameRate"))).To_float64();
+    if (!FrameRate || (FrameRate >= 29.97 && FrameRate <= 29.98))
+        FrameRate = double(30 / 1.001); // Default if no frame rate available, or better rounding
+    FrameNumber = 0;
 }
 
 //---------------------------------------------------------------------------
@@ -100,8 +102,29 @@ file::~file()
 //---------------------------------------------------------------------------
 void file::AddChange(const MediaInfo_Event_DvDif_Change_0* FrameData)
 {
+    FrameNumber++; // Event FrameCount is currently wrong
+
+    // Check if there is a change we support
+    if (!PerChange.empty())
+    {
+        const auto Current = PerChange.back();
+        if (Current->Width == FrameData->Width
+            && Current->Height == FrameData->Height
+            && Current->VideoRatio_N == FrameData->VideoRatio_N
+            && Current->VideoRatio_D == FrameData->VideoRatio_D
+            && Current->VideoRate_N == FrameData->VideoRate_N
+            && Current->VideoRate_D == FrameData->VideoRate_D
+            && Current->AudioRate_N == FrameData->AudioRate_N
+            && Current->AudioRate_D == FrameData->AudioRate_D
+            && Current->AudioChannels == FrameData->AudioChannels)
+        {
+            return;
+        }
+    }
+
     MediaInfo_Event_DvDif_Change_0* ToPush = new MediaInfo_Event_DvDif_Change_0();
     std::memcpy(ToPush, FrameData, sizeof(MediaInfo_Event_DvDif_Change_0));
+    ToPush->FrameNumber = FrameNumber - 1; // Event FrameCount is currently wrong
     PerChange.push_back(ToPush);
 }
 
@@ -153,7 +176,7 @@ string TimeCode2String(int Seconds, bool DropFrame, int Frames)
 }
 
 //---------------------------------------------------------------------------
-string TimeStamp2String(float Seconds_Float)
+string to_timestamp(double Seconds_Float)
 {
     if (Seconds_Float >= 360000)
         return string(); // Not supported
@@ -198,7 +221,7 @@ string Date2String(int Years, int Months, int Days)
 }
 
 //---------------------------------------------------------------------------
-char ToHex4(int Value)
+char to_hex4(int Value)
 {
     if (Value >= 16)
         return 'X';
@@ -270,66 +293,89 @@ string Core::OutputXml()
     {
         if (File->PerFrame.empty())
             continue; // Show the file only if there is some DV content
+        if (File->PerChange.empty())
+        {
+            // Handling old MediaInfo not having this feature
+            MediaInfo_Event_DvDif_Change_0* ToPush = new MediaInfo_Event_DvDif_Change_0();
+            std::memset(ToPush, 0x00, sizeof(MediaInfo_Event_DvDif_Change_0)); // TODO: real data from MediaInfo::Get()
+            File->PerChange.push_back(ToPush);
+        }
 
         // Media header
         Text += "\t<media ref=\"" + Ztring(File->MI.Get(Stream_General, 0, __T("CompleteName"))).To_UTF8() + "\">\n";
 
         // By Frame - For each line
         auto FrameNumber_Max = File->PerFrame.size() - 1;
+        auto PerChange_Next = File->PerChange.begin();
+        auto ShowFrames = true;
         for (const auto& Frame : File->PerFrame)
         {
             decltype(FrameNumber_Max) FrameNumber = &Frame - &*File->PerFrame.begin();
+            auto ShowFrame = ShowFrames || Frame->Video_STA_Errors || FrameNumber == FrameNumber_Max;
 
-            auto ShowFrame = Frame->Video_STA_Errors || FrameNumber == 0 || FrameNumber == FrameNumber_Max;
-            auto ShowFrames = FrameNumber == 0;
-            if (!ShowFrame)
-            {
-                auto Current = File->PerChange[FrameNumber];
-                auto Previous = File->PerChange[FrameNumber - 1];
-                if (Current->Width != Previous->Width
-                    || Current->Height != Previous->Height
-                    || Current->VideoRatio_N != Previous->VideoRatio_N
-                    || Current->VideoRatio_D != Previous->VideoRatio_D
-                    || Current->VideoRate_N != Previous->VideoRate_N
-                    || Current->VideoRate_D != Previous->VideoRate_D
-                    || Current->AudioRate_N != Previous->AudioRate_N
-                    || Current->AudioRate_D != Previous->AudioRate_D
-                    || Current->AudioChannels != Previous->AudioChannels)
-                    ShowFrames = true;
-            }
-                
             if (ShowFrames)
             {
+                ShowFrames = false;
+
                 if (FrameNumber)
                     Text += "\t\t</frames>\n";
 
-                auto Change = File->PerChange[FrameNumber];
-                Text += "\t\t<frames size=\"";
-                Text += to_string(Change->Width);
-                Text += 'x';
-                Text += to_string(Change->Height);
-                Text += '\"';
+                auto Change = *PerChange_Next;
+                PerChange_Next++;
+                Text += "\t\t<frames";
+                {
+                    auto FrameCount = (PerChange_Next != File->PerChange.end() ? (*PerChange_Next)->FrameNumber : (FrameNumber_Max + 1)) - FrameNumber;
+                    Text += " count=\"";
+                    Text += to_string(FrameCount);
+                    Text += '\"';
+                }
+                {
+                    auto TimeStamp_Begin = FrameNumber / File->FrameRate;
+                    Text += " pts=\"";
+                    Text += to_timestamp(TimeStamp_Begin);
+                    Text += '\"';
+                }
+                {
+                    auto TimeStamp_End = (PerChange_Next != File->PerChange.end() ? (*PerChange_Next)->FrameNumber : (FrameNumber_Max + 1)) / File->FrameRate;
+                    Text += " end_pts=\"";
+                    Text += to_timestamp(TimeStamp_End);
+                    Text += '\"';
+                }
+                if (Change->Width && Change->Height)
+                {
+                    Text += " size=\"";
+                    Text += to_string(Change->Width);
+                    Text += 'x';
+                    Text += to_string(Change->Height);
+                    Text += '\"';
+                }
                 if (Change->VideoRate_N)
                 {
                     Text += " video_rate=\"";
                     Text += to_string(Change->VideoRate_N);
-                    Text += '/';
-                    Text += to_string(Change->VideoRate_D);
+                    if (Change->VideoRate_D && Change->VideoRate_D != 1)
+                    {
+                        Text += '/';
+                        Text += to_string(Change->VideoRate_D);
+                    }
                     Text += '\"';
                 }
                 if (Change->VideoRatio_N)
                 {
                     Text += " aspect_ratio=\"";
                     Text += to_string(Change->VideoRatio_N);
-                    Text += '/';
-                    Text += to_string(Change->VideoRatio_D);
+                    if (Change->VideoRatio_D && Change->VideoRatio_D != 1)
+                    {
+                        Text += '/';
+                        Text += to_string(Change->VideoRatio_D);
+                    }
                     Text += '\"';
                 }
                 if (Change->AudioRate_N)
                 {
                     Text += " audio_rate=\"";
                     Text += to_string(Change->AudioRate_N);
-                    if (Change->AudioRate_D != 1)
+                    if (Change->AudioRate_D && Change->AudioRate_D != 1)
                     {
                         Text += '/';
                         Text += to_string(Change->AudioRate_D);
@@ -345,13 +391,30 @@ string Core::OutputXml()
                 Text += ">\n";
             }
 
+            if (!ShowFrame)
+            {
+                if (PerChange_Next != File->PerChange.end() && (*PerChange_Next)->FrameNumber == FrameNumber + 1)
+                {
+                    ShowFrame = true;
+                    ShowFrames = true; // For next frame
+                }
+            }
+
             if (ShowFrame)
             {
                 auto TimeStamp = FrameNumber / File->FrameRate;
 
-                Text += "\t\t\t<frame"
-                    " n=\"" + to_string(FrameNumber) + "\""
-                    " pts=\"" + TimeStamp2String(TimeStamp) + "\"";
+                Text += "\t\t\t<frame";
+                {
+                    Text += " n=\"";
+                    Text += to_string(FrameNumber);
+                    Text += '\"';
+                }
+                {
+                    Text += " pts=\"";
+                    Text += to_timestamp(TimeStamp);
+                    Text += '\"';
+                }
 
                 // TimeCode
                 auto TimeCode_Seconds = (Frame->TimeCode >> 8) & 0x7FFFF; // Value
@@ -478,7 +541,7 @@ string Core::OutputXml()
                                         if (n)
                                         {
                                             Text += "\t\t\t\t\t\t<sta t=\"";
-                                            Text += ToHex4(STA);
+                                            Text += to_string(STA);
                                             Text += "\" n=\"";
                                             Text += to_string(n);
                                             Text += "\"/>\n";
@@ -499,7 +562,7 @@ string Core::OutputXml()
                                     if (n)
                                     {
                                         Text += "\t\t\t\t\t<sta t=\"";
-                                        Text += ToHex4(STA);
+                                        Text += to_string(STA);
                                         Text += "\" n=\"";
                                         Text += to_string(n);
                                         Text += "\"/>\n";
@@ -516,7 +579,7 @@ string Core::OutputXml()
                             if (n)
                             {
                                 Text += "\t\t\t\t<sta t=\"";
-                                Text += ToHex4(STA);
+                                Text += to_string(STA);
                                 Text += "\" n=\"";
                                 Text += to_string(n);
                                 Text += "\"/>\n";
