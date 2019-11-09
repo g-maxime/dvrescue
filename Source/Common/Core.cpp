@@ -7,7 +7,6 @@
 //---------------------------------------------------------------------------
 #include "Common/Core.h"
 #include "ZenLib/Ztring.h" // TODO: remove that
-#include <cfenv>
 using namespace ZenLib;
 //---------------------------------------------------------------------------
 
@@ -16,17 +15,13 @@ using namespace ZenLib;
 //***************************************************************************
 
 const auto Sta_Bits = 4;
-const auto Sct_Bits = 3;
 const auto Dseq_Bits = 4;
 const auto Sta_BitPos = 0;
-const auto Sct_BitPos = Sta_BitPos + Sta_Bits;
-const auto Dseq_BitPos = Sct_BitPos + Sct_Bits;
+const auto Dseq_BitPos = Sta_BitPos + Sta_Bits;
 const auto Sta_Size = 1 << Sta_Bits;
-const auto Sct_Size = 1 << Sct_Bits;
 const auto Dseq_Size = 1 << Dseq_Bits;
-const auto Sct_Step = Sta_Size;
-const auto Dseq_Step = Sct_Size * Sct_Step;
-const auto Sct_Max = Dseq_Step;
+const auto Sta_Step = 1;
+const auto Dseq_Step = Sta_Size * Sta_Step;
 const auto Dseq_Max = Dseq_Size * Dseq_Step;
 
 //***************************************************************************
@@ -38,7 +33,7 @@ class file
 public:
     MediaInfo MI;
     std::vector<MediaInfo_Event_DvDif_Change_0*> PerChange;
-    std::vector<MediaInfo_Event_DvDif_Analysis_Frame_0*> PerFrame;
+    std::vector<MediaInfo_Event_DvDif_Analysis_Frame_1*> PerFrame;
     double FrameRate;
     size_t FrameNumber;
 
@@ -46,7 +41,7 @@ public:
     ~file();
 
     void AddChange(const MediaInfo_Event_DvDif_Change_0* FrameData);
-    void AddFrame(const MediaInfo_Event_DvDif_Analysis_Frame_0* FrameData);
+    void AddFrame(const MediaInfo_Event_DvDif_Analysis_Frame_1* FrameData);
 };
 
 //***************************************************************************
@@ -75,7 +70,7 @@ void __stdcall Event_CallBackFunction(unsigned char* Data_Content, size_t Data_S
     case MediaInfo_Parser_DvDif:
         switch (EventID)
         {
-        case MediaInfo_Event_DvDif_Analysis_Frame: if (EventVersion == 0 && Data_Size >= sizeof(struct MediaInfo_Event_DvDif_Analysis_Frame_0)) UserHandler->AddFrame((MediaInfo_Event_DvDif_Analysis_Frame_0*)Event_Generic); break;
+        case MediaInfo_Event_DvDif_Analysis_Frame: if (EventVersion == 1 && Data_Size >= sizeof(struct MediaInfo_Event_DvDif_Analysis_Frame_1)) UserHandler->AddFrame((MediaInfo_Event_DvDif_Analysis_Frame_1*)Event_Generic); break;
         case MediaInfo_Event_DvDif_Change: if (EventVersion == 0 && Data_Size >= sizeof(struct MediaInfo_Event_DvDif_Change_0)) UserHandler->AddChange((MediaInfo_Event_DvDif_Change_0*)Event_Generic); break;
         }
         break;
@@ -108,7 +103,7 @@ file::~file()
     for (auto& Frame : PerFrame)
     {
         delete[] Frame->Errors;
-        delete[] Frame->Video_STA_Errors;
+        delete[] Frame->Video_STA_Errors_ByDseq;
     }
 }
 
@@ -146,21 +141,21 @@ void file::AddChange(const MediaInfo_Event_DvDif_Change_0* FrameData)
 }
 
 //---------------------------------------------------------------------------
-void file::AddFrame(const MediaInfo_Event_DvDif_Analysis_Frame_0* FrameData)
+void file::AddFrame(const MediaInfo_Event_DvDif_Analysis_Frame_1* FrameData)
 {
-    MediaInfo_Event_DvDif_Analysis_Frame_0* ToPush = new MediaInfo_Event_DvDif_Analysis_Frame_0();
-    std::memcpy(ToPush, FrameData, sizeof(MediaInfo_Event_DvDif_Analysis_Frame_0));
+    MediaInfo_Event_DvDif_Analysis_Frame_1* ToPush = new MediaInfo_Event_DvDif_Analysis_Frame_1();
+    std::memcpy(ToPush, FrameData, sizeof(MediaInfo_Event_DvDif_Analysis_Frame_1));
     if (FrameData->Errors)
     {
         size_t SizeToCopy = std::strlen(FrameData->Errors) + 1;
         ToPush->Errors = new char[SizeToCopy];
         std::memcpy(ToPush->Errors, FrameData->Errors, SizeToCopy);
     }
-    if (FrameData->Video_STA_Errors)
+    if (FrameData->Video_STA_Errors_ByDseq)
     {
-        size_t SizeToCopy = 8 * 16 * 16 * sizeof(size_t);
-        ToPush->Video_STA_Errors = new size_t[SizeToCopy];
-        std::memcpy(ToPush->Video_STA_Errors, FrameData->Video_STA_Errors, SizeToCopy);
+        size_t SizeToCopy = Dseq_Size * Sta_Size * sizeof(size_t);
+        ToPush->Video_STA_Errors_ByDseq = new size_t[SizeToCopy];
+        std::memcpy(ToPush->Video_STA_Errors_ByDseq, FrameData->Video_STA_Errors_ByDseq, SizeToCopy);
     }
     PerFrame.push_back(ToPush);
 }
@@ -247,6 +242,42 @@ char to_hex4(int Value)
     return '0' + Value;
 }
 
+void Xml_Dseq_Begin(string& Text, size_t o, int Dseq)
+{
+    Text.append(o, '\t');
+    Text += "<dseq n=\"";
+    Text += to_string(Dseq >> Dseq_BitPos);
+    Text += "\">\n";
+}
+
+void Xml_Dseq_End(string& Text, size_t o)
+{
+    Text.append(o, '\t');
+    Text += "</dseq>\n";
+}
+
+void Xml_Sta_Element(string& Text, size_t o, int Sta, size_t n)
+{
+    if (!n)
+        return;
+
+    Text.append(o, '\t');
+    Text += "<sta t=\"";
+    Text += to_string(Sta);
+    Text += "\" n=\"";
+    Text += to_string(n);
+    Text += "\"/>\n";
+}
+
+void Xml_Sta_Elements(string& Text, size_t o, const size_t* const Stas)
+{
+    for (auto Sta = 0; Sta < Sta_Size; Sta++)
+    {
+        auto n = Stas[Sta];
+        Xml_Sta_Element(Text, o, Sta, n);
+    }
+}
+
 //***************************************************************************
 // Constructor/Destructor
 //***************************************************************************
@@ -273,9 +304,7 @@ void Core::Process()
     
     PerFile.reserve(Inputs.size());
     for (const auto& Input : Inputs)
-    {
         PerFile.push_back(new file(Input));
-    }
 }
 
 //---------------------------------------------------------------------------
@@ -283,9 +312,7 @@ float Core::State ()
 {
     size_t Total = 0;
     for (const auto& File : PerFile)
-    {
         Total += File->MI.State_Get();
-    }
     return (((float)Total)/PerFile.size()/10000);
 }
 
@@ -328,7 +355,7 @@ string Core::OutputXml()
         for (const auto& Frame : File->PerFrame)
         {
             decltype(FrameNumber_Max) FrameNumber = &Frame - &*File->PerFrame.begin();
-            auto ShowFrame = ShowFrames || Frame->Video_STA_Errors || FrameNumber == FrameNumber_Max;
+            auto ShowFrame = ShowFrames || Frame->Video_STA_Errors_ByDseq || FrameNumber == FrameNumber_Max;
 
             if (ShowFrames)
             {
@@ -509,135 +536,48 @@ string Core::OutputXml()
                 }
 
                 // Errors
-                if (Frame->Video_STA_Errors) //Frame->Errors)
+                if (Frame->Video_STA_Errors_ByDseq)
                 {
                     Text += ">\n";
 
                     // Split
-                    if (Frame->Video_STA_Errors)
+                    if (Frame->Video_STA_Errors_ByDseq)
                     {
+                        // Compute
                         size_t TotalPerSta[Sta_Size];
                         memset(TotalPerSta, 0, Sta_Size * sizeof(size_t));
                         for (auto Dseq = 0; Dseq < Dseq_Max; Dseq += Dseq_Step)
                         {
+                            // Compute
                             size_t TotalPerDseqPerSta[Sta_Size];
                             memset(TotalPerDseqPerSta, 0, Sta_Size * sizeof(size_t));
-                            auto Dseq_Open = false;
-                            for (auto Sct = 0; Sct < Sct_Max; Sct += Sct_Step)
+                            bool HasErrors = false;
+                            const auto Dseq_Sta_End = Dseq + Sta_Size;
+                            for (auto Dseq_Sta = Dseq; Dseq_Sta < Dseq_Sta_End; Dseq_Sta += Sta_Step)
                             {
-                                auto Sct_Open = false;
-                                size_t Total = 0;
-                                for (auto Sta = 0; Sta < Sta_Size; Sta++)
+                                const auto n = Frame->Video_STA_Errors_ByDseq[Dseq_Sta];
+                                if (n)
                                 {
-                                    auto Dseq_Sct_Sta = Dseq | Sct | Sta;
-                                    auto n = Frame->Video_STA_Errors[Dseq_Sct_Sta];
-                                    Total += n;
+                                    if (!HasErrors)
+                                        HasErrors = true;
+                                    const auto Sta = Dseq_Sta - Dseq;
                                     TotalPerDseqPerSta[Sta] += n;
                                     TotalPerSta[Sta] += n;
                                 }
-                                if (Total)
-                                {
-                                    if (!Dseq_Open)
-                                    {
-                                        Text += "\t\t\t\t<dseq n=\"";
-                                        Text += to_string(Dseq >> Dseq_BitPos);
-                                        Text += "\">\n";
-                                        Dseq_Open = true;
-                                    }
-                                    if (!Sct_Open)
-                                    {
-                                        Text += "\t\t\t\t\t<sct t=\"";
-                                        Text += to_string(Sct >> Sct_BitPos);
-                                        Text += "\">\n";
-                                        Sct_Open = true;
-                                    }
-                                    for (auto Sta = 0; Sta < 16; Sta++)
-                                    {
-                                        auto Dseq_Sct_Sta = Dseq | Sct | Sta;
-                                        auto n = Frame->Video_STA_Errors[Dseq_Sct_Sta];
-                                        if (n)
-                                        {
-                                            Text += "\t\t\t\t\t\t<sta t=\"";
-                                            Text += to_string(Sta);
-                                            Text += "\" n=\"";
-                                            Text += to_string(n);
-                                            Text += "\"/>\n";
-                                        }
-                                    }
-
-                                    if (Sct_Open)
-                                    {
-                                        Text += "\t\t\t\t\t</sct>\n";
-                                    }
-                                }
                             }
-                            if (Dseq_Open)
+
+                            // Display
+                            if (HasErrors)
                             {
-                                for (auto STA = 0; STA < 16; STA++)
-                                {
-                                    auto n = TotalPerDseqPerSta[STA];
-                                    if (n)
-                                    {
-                                        Text += "\t\t\t\t\t<sta t=\"";
-                                        Text += to_string(STA);
-                                        Text += "\" n=\"";
-                                        Text += to_string(n);
-                                        Text += "\"/>\n";
-                                    }
-                                }
-
-                                Text += "\t\t\t\t</dseq>\n";
+                                Xml_Dseq_Begin(Text, 4, Dseq);
+                                Xml_Sta_Elements(Text, 5, TotalPerDseqPerSta);
+                                Xml_Dseq_End(Text, 4);
                             }
                         }
 
-                        for (auto STA = 0; STA < 16; STA++)
-                        {
-                            auto n = TotalPerSta[STA];
-                            if (n)
-                            {
-                                Text += "\t\t\t\t<sta t=\"";
-                                Text += to_string(STA);
-                                Text += "\" n=\"";
-                                Text += to_string(n);
-                                Text += "\"/>\n";
-                            }
-                        }
+                        // Display
+                        Xml_Sta_Elements(Text, 4, TotalPerSta);
                     }
-
-                    /*
-                    static const auto Errors_Text_Size = 6;
-                    static const char* Errors_Text[] =
-                    {
-                        "video error concealment",
-                        "audio error code",
-                        "DV timecode incoherency",
-                        "DIF incoherency",
-                        "Arbitrary bit inconsistency",
-                        "Stts fluctuation",
-                    };
-                    const auto Errors = Frame->Errors;
-                    size_t c = 0, e = 0;
-                    for (size_t i = 0; Errors[i]; i++)
-                    {   
-                        if (Errors[i] != '\t')
-                            continue;
-
-                        if (i != c)
-                        {
-                            Text += "\t\t\t\t<error type=\"";
-                            if (e<Errors_Text_Size)
-                                Text += Errors_Text[e];
-                            else
-                                Text += to_string(e);
-                            Text += "\">";
-                            Text.append(Errors + c, i - c);
-                            Text += "</error>\n";
-                        }
-
-                        e++;
-                        c = i + 1;
-                    }
-                    */
 
                     Text += "\t\t\t</frame>\n";
                 }
@@ -665,8 +605,6 @@ string Core::OutputXml()
 void Core::PerFile_Clear()
 {
     for (const auto& File : PerFile)
-    {
         delete File;
-    }
     PerFile.clear();
 }
