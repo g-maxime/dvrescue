@@ -154,12 +154,16 @@
     <ClCompile Include="..\..\..\Source\CLI\CLI_Main.cpp" />
     <ClCompile Include="..\..\..\Source\CLI\CommandLine_Parser.cpp" />
     <ClCompile Include="..\..\..\Source\Common\Core.cpp" />
+    <ClCompile Include="..\..\..\Source\Common\ProcessFile.cpp" />
+    <ClCompile Include="..\..\..\Source\Common\XmlOutput.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\Source\CLI\CLI_Help.h" />
     <ClInclude Include="..\..\..\Source\CLI\CommandLine_Parser.h" />
     <ClInclude Include="..\..\..\Source\Common\Config.h" />
     <ClInclude Include="..\..\..\Source\Common\Core.h" />
+    <ClInclude Include="..\..\..\Source\Common\ProcessFile.h" />
+    <ClInclude Include="..\..\..\Source\Common\XmlOutput.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DVRescue.rc" />

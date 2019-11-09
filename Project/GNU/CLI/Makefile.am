@@ -5,12 +5,14 @@ dvrescue_SOURCES = \
     ../../../Source/CLI/CLI_Help.cpp \
     ../../../Source/CLI/CLI_Main.cpp \
     ../../../Source/CLI/CommandLine_Parser.cpp \
-    ../../../Source/Common/Core.cpp
+    ../../../Source/Common/Core.cpp \
+    ../../../Source/Common/ProcessFile.cpp \
+    ../../../Source/Common/XmlOutput.cpp
 
 INCLUDES = -I../../../Source \
            -I../../../../MediaInfoLib/Source \
            -I../../../../ZenLib/Source
-AM_CXXFLAGS = -std=c++0x
+AM_CXXFLAGS = -std=c++11
 
 # man1_MANS = ../../../Source/CLI/dvrescue.1
 

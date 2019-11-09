@@ -6,26 +6,14 @@
 
 //---------------------------------------------------------------------------
 #pragma once
-#include "Common/Config.h"
-#ifdef MEDIAINFO_DLL
-    #include "MediaInfoDLL/MediaInfoDLL.h"
-    #define MediaInfoNameSpace MediaInfoDLL
-#elif defined MEDIAINFO_STATIC
-    #include "MediaInfoDLL/MediaInfoDLL_Static.h"
-    #define MediaInfoNameSpace MediaInfoDLL
-#else
-    #include "MediaInfo/MediaInfoList.h"
-    #define MediaInfoNameSpace MediaInfoLib
-#endif
-#include "MediaInfo/MediaInfo_Events.h"
+#include "Common/ProcessFile.h"
 #include <vector>
 using namespace MediaInfoNameSpace;
 using namespace std;
-class file;
 //---------------------------------------------------------------------------
 
 //***************************************************************************
-// Class Core
+// Class core
 //***************************************************************************
 
 class Core
@@ -35,7 +23,7 @@ public:
     Core();
     ~Core();
 
-    // Data
+    // Input
     vector<String>  Inputs;
 
     // Process
@@ -46,6 +34,6 @@ public:
     string          OutputXml();
 
 protected:
-    std::vector<file*> PerFile;
+    vector<file*>   PerFile;
     void            PerFile_Clear();
 };

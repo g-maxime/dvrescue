@@ -64,9 +64,9 @@ return_value Parse(Core &C, int argc, const char* argv_ansi[])
     std::vector<MediaInfoNameSpace::String> argv_Temp;
     for (int i = 0; i < argc; i++)
     {
-        ZenLib::Ztring A; // TODO: not using ZenLib
-        A.From_Local(argv_ansi[i]);
-        argv_Temp.push_back(A);
+        ZenLib::Ztring FileName;
+        FileName.From_Local(argv_ansi[i]);
+        argv_Temp.push_back(FileName);
     }
     auto argv = new const MediaInfoNameSpace::Char*[argc];
     for (int i = 0; i < argc; i++)
