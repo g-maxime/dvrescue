@@ -22,6 +22,18 @@ const auto Dseq_Size = 1 << Dseq_Bits;
 const auto DseqSta_Size = Dseq_Size * Sta_Size;
 
 //***************************************************************************
+// Strings
+//***************************************************************************
+
+const size_t chroma_subsampling_size = 3;
+const char* chroma_subsampling[chroma_subsampling_size] =
+{
+    "4:1:1",
+    "4:2:0",
+    "4:2:2",
+};
+
+//***************************************************************************
 // Helpers
 //***************************************************************************
 
@@ -117,7 +129,7 @@ void Xml_Dseq_End(string& Text, size_t o)
     Text += "</dseq>\n";
 }
 
-void Xml_Sta_Element(string& Text, size_t o, int Sta, size_t n)
+void Xml_Sta_Element(string& Text, size_t o, int Sta, size_t n, size_t n_even = size_t(-1))
 {
     if (!n)
         return;
@@ -127,19 +139,27 @@ void Xml_Sta_Element(string& Text, size_t o, int Sta, size_t n)
     Text += to_string(Sta);
     Text += "\" n=\"";
     Text += to_string(n);
-    Text += "\"/>\n";
+    Text += "\"";
+    if (n_even != size_t(-1))
+    {
+        Text += " n_even=\"";
+        Text += to_string(n_even);
+        Text += '\"';
+    }
+    Text += "/>\n";
 }
 
-void Xml_Sta_Elements(string& Text, size_t o, const size_t* const Stas)
+void Xml_Sta_Elements(string& Text, size_t o, const size_t* const Stas, const size_t* const Stas_even = nullptr)
 {
     for (auto Sta = 0; Sta < Sta_Size; Sta++)
     {
         auto n = Stas[Sta];
-        Xml_Sta_Element(Text, o, Sta, n);
+        auto n_even = Stas_even == nullptr ? size_t(-1) : Stas_even[Sta];
+        Xml_Sta_Element(Text, o, Sta, n, n_even);
     }
 }
 
-void Xml_Aud_Element(string& Text, size_t o, size_t n)
+void Xml_Aud_Element(string& Text, size_t o, size_t n, size_t n_even = size_t(-1))
 {
     if (!n)
         return;
@@ -147,7 +167,14 @@ void Xml_Aud_Element(string& Text, size_t o, size_t n)
     Text.append(o, '\t');
     Text += "<aud n=\"";
     Text += to_string(n);
-    Text += "\"/>\n";
+    Text += "\"";
+    if (n_even != size_t(-1))
+    {
+        Text += " n_even=\"";
+        Text += to_string(n_even);
+        Text += '\"';
+    }
+    Text += "/>\n";
 }
 
 //***************************************************************************
@@ -161,7 +188,7 @@ string OutputXml(std::vector<file*>& PerFile)
 
     // XML header
     Text += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-        "<dvrescue xmlns=\"https://mediaarea.net/dvrescue\" version=\"1.0\">\n"
+        "<dvrescue xmlns=\"https://mediaarea.net/dvrescue\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"https://mediaarea.net/dvrescue https://raw.githubusercontent.com/mipops/dvrescue/schema-updates/tools/dvrescue.xsd\" version=\"1.0\">\n"
         "\t<creator>\n"
         "\t\t<program>dvrescue</program>\n"
         "\t\t<version>" Program_Version "</version>\n"
@@ -182,7 +209,7 @@ string OutputXml(std::vector<file*>& PerFile)
         for (const auto& Frame : File->PerFrame)
         {
             decltype(FrameNumber_Max) FrameNumber = &Frame - &*File->PerFrame.begin();
-            auto ShowFrame = ShowFrames || Frame->Video_STA_Errors || FrameNumber == FrameNumber_Max;
+            auto ShowFrame = ShowFrames || Frame->Video_STA_Errors || Frame->Audio_Data_Errors || FrameNumber == FrameNumber_Max;
 
             if (ShowFrames)
             {
@@ -231,6 +258,12 @@ string OutputXml(std::vector<file*>& PerFile)
                     }
                     Text += '\"';
                 }
+                if (Change->VideoChromaSubsampling <= chroma_subsampling_size)
+                {
+                    Text += " chroma_subsampling=\"";
+                    Text += chroma_subsampling[Change->VideoChromaSubsampling];
+                    Text += '\"';
+                }
                 if (Change->VideoRatio_N)
                 {
                     Text += " aspect_ratio=\"";
@@ -255,7 +288,7 @@ string OutputXml(std::vector<file*>& PerFile)
                 }
                 if (Change->AudioChannels)
                 {
-                    Text += " audio_channels=\"";
+                    Text += " channels=\"";
                     Text += to_string(Change->AudioChannels);
                     Text += '\"';
                 }
@@ -373,14 +406,21 @@ string OutputXml(std::vector<file*>& PerFile)
                         // Compute
                         size_t Video_Sta_TotalPerSta[Sta_Size];
                         memset(Video_Sta_TotalPerSta, 0, Sta_Size * sizeof(size_t));
+                        size_t Video_Sta_EvenTotalPerSta[Sta_Size];
+                        memset(Video_Sta_EvenTotalPerSta, 0, Sta_Size * sizeof(size_t));
                         size_t Audio_Data_Total = 0;
+                        size_t Audio_Data_EvenTotal = 0;
                         for (auto Dseq = 0; Dseq < Dseq_Size; Dseq++)
                         {
                             // Compute
                             size_t Video_Sta_TotalPerDseqPerSta[Sta_Size];
                             memset(Video_Sta_TotalPerDseqPerSta, 0, Sta_Size * sizeof(size_t));
+                            size_t Video_Sta_EvenTotalPerDseqPerSta[Sta_Size];
+                            memset(Video_Sta_EvenTotalPerDseqPerSta, 0, Sta_Size * sizeof(size_t));
                             size_t Audio_Data_TotalPerDseq[Dseq_Size];
                             memset(Audio_Data_TotalPerDseq, 0, Dseq_Size * sizeof(size_t));
+                            size_t Audio_Data_EvenTotalPerDseq[Dseq_Size];
+                            memset(Audio_Data_EvenTotalPerDseq, 0, Dseq_Size * sizeof(size_t));
                             bool HasErrors = false;
                             for (auto Sta = 0; Sta < Sta_Size; Sta++)
                             {
@@ -394,6 +434,11 @@ string OutputXml(std::vector<file*>& PerFile)
                                             HasErrors = true;
                                         Video_Sta_TotalPerDseqPerSta[Sta] += n;
                                         Video_Sta_TotalPerSta[Sta] += n;
+                                        if (!(Dseq % 2))
+                                        {
+                                            Video_Sta_EvenTotalPerDseqPerSta[Sta] += n;
+                                            Video_Sta_EvenTotalPerSta[Sta] += n;
+                                        }
                                     }
                                 }
                             }
@@ -406,6 +451,11 @@ string OutputXml(std::vector<file*>& PerFile)
                                         HasErrors = true;
                                     Audio_Data_TotalPerDseq[Dseq] += n;
                                     Audio_Data_Total += n;
+                                    if (!(Dseq % 2))
+                                    {
+                                        Audio_Data_EvenTotalPerDseq[Dseq] += n;
+                                        Audio_Data_EvenTotal += n;
+                                    }
                                 }
                             }
 
@@ -420,8 +470,8 @@ string OutputXml(std::vector<file*>& PerFile)
                         }
 
                         // Display
-                        Xml_Sta_Elements(Text, 4, Video_Sta_TotalPerSta);
-                        Xml_Aud_Element(Text, 4, Audio_Data_Total);
+                        Xml_Sta_Elements(Text, 4, Video_Sta_TotalPerSta, Video_Sta_EvenTotalPerSta);
+                        Xml_Aud_Element(Text, 4, Audio_Data_Total, Audio_Data_EvenTotal);
                     }
 
                     Text += "\t\t\t</frame>\n";
