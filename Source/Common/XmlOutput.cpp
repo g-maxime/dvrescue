@@ -17,13 +17,9 @@ using namespace ZenLib;
 
 const auto Sta_Bits = 4;
 const auto Dseq_Bits = 4;
-const auto Sta_BitPos = 0;
-const auto Dseq_BitPos = Sta_BitPos + Sta_Bits;
 const auto Sta_Size = 1 << Sta_Bits;
 const auto Dseq_Size = 1 << Dseq_Bits;
-const auto Sta_Step = 1;
-const auto Dseq_Step = Sta_Size * Sta_Step;
-const auto Dseq_Max = Dseq_Size * Dseq_Step;
+const auto DseqSta_Size = Dseq_Size * Sta_Size;
 
 //***************************************************************************
 // Helpers
@@ -111,7 +107,7 @@ void Xml_Dseq_Begin(string& Text, size_t o, int Dseq)
 {
     Text.append(o, '\t');
     Text += "<dseq n=\"";
-    Text += to_string(Dseq >> Dseq_BitPos);
+    Text += to_string(Dseq);
     Text += "\">\n";
 }
 
@@ -141,6 +137,17 @@ void Xml_Sta_Elements(string& Text, size_t o, const size_t* const Stas)
         auto n = Stas[Sta];
         Xml_Sta_Element(Text, o, Sta, n);
     }
+}
+
+void Xml_Aud_Element(string& Text, size_t o, size_t n)
+{
+    if (!n)
+        return;
+
+    Text.append(o, '\t');
+    Text += "<aud n=\"";
+    Text += to_string(n);
+    Text += "\"/>\n";
 }
 
 //***************************************************************************
@@ -356,33 +363,49 @@ string OutputXml(std::vector<file*>& PerFile)
                 }
 
                 // Errors
-                if (Frame->Video_STA_Errors)
+                if (Frame->Video_STA_Errors || Frame->Audio_Data_Errors)
                 {
                     Text += ">\n";
 
                     // Split
-                    if (Frame->Video_STA_Errors_Count == Dseq_Max)
+                    if (Frame->Video_STA_Errors_Count == DseqSta_Size || Frame->Audio_Data_Errors_Count == Dseq_Size)
                     {
                         // Compute
-                        size_t TotalPerSta[Sta_Size];
-                        memset(TotalPerSta, 0, Sta_Size * sizeof(size_t));
-                        for (auto Dseq = 0; Dseq < Dseq_Max; Dseq += Dseq_Step)
+                        size_t Video_Sta_TotalPerSta[Sta_Size];
+                        memset(Video_Sta_TotalPerSta, 0, Sta_Size * sizeof(size_t));
+                        size_t Audio_Data_Total = 0;
+                        for (auto Dseq = 0; Dseq < Dseq_Size; Dseq++)
                         {
                             // Compute
-                            size_t TotalPerDseqPerSta[Sta_Size];
-                            memset(TotalPerDseqPerSta, 0, Sta_Size * sizeof(size_t));
+                            size_t Video_Sta_TotalPerDseqPerSta[Sta_Size];
+                            memset(Video_Sta_TotalPerDseqPerSta, 0, Sta_Size * sizeof(size_t));
+                            size_t Audio_Data_TotalPerDseq[Dseq_Size];
+                            memset(Audio_Data_TotalPerDseq, 0, Dseq_Size * sizeof(size_t));
                             bool HasErrors = false;
-                            const auto Dseq_Sta_End = Dseq + Sta_Size;
-                            for (auto Dseq_Sta = Dseq; Dseq_Sta < Dseq_Sta_End; Dseq_Sta += Sta_Step)
+                            for (auto Sta = 0; Sta < Sta_Size; Sta++)
                             {
-                                const auto n = Frame->Video_STA_Errors[Dseq_Sta];
+                                if (Frame->Video_STA_Errors)
+                                {
+                                    auto DseqSta = (Dseq << Sta_Bits) | Sta;
+                                    const auto n = Frame->Video_STA_Errors[DseqSta];
+                                    if (n)
+                                    {
+                                        if (!HasErrors)
+                                            HasErrors = true;
+                                        Video_Sta_TotalPerDseqPerSta[Sta] += n;
+                                        Video_Sta_TotalPerSta[Sta] += n;
+                                    }
+                                }
+                            }
+                            if (Frame->Audio_Data_Errors)
+                            {
+                                const auto n = Frame->Audio_Data_Errors[Dseq];
                                 if (n)
                                 {
                                     if (!HasErrors)
                                         HasErrors = true;
-                                    const auto Sta = Dseq_Sta - Dseq;
-                                    TotalPerDseqPerSta[Sta] += n;
-                                    TotalPerSta[Sta] += n;
+                                    Audio_Data_TotalPerDseq[Dseq] += n;
+                                    Audio_Data_Total += n;
                                 }
                             }
 
@@ -390,13 +413,15 @@ string OutputXml(std::vector<file*>& PerFile)
                             if (HasErrors)
                             {
                                 Xml_Dseq_Begin(Text, 4, Dseq);
-                                Xml_Sta_Elements(Text, 5, TotalPerDseqPerSta);
+                                Xml_Sta_Elements(Text, 5, Video_Sta_TotalPerDseqPerSta);
+                                Xml_Aud_Element(Text, 5, Audio_Data_TotalPerDseq[Dseq]);
                                 Xml_Dseq_End(Text, 4);
                             }
                         }
 
                         // Display
-                        Xml_Sta_Elements(Text, 4, TotalPerSta);
+                        Xml_Sta_Elements(Text, 4, Video_Sta_TotalPerSta);
+                        Xml_Aud_Element(Text, 4, Audio_Data_Total);
                     }
 
                     Text += "\t\t\t</frame>\n";

@@ -70,6 +70,7 @@ file::~file()
     {
         delete[] Frame->Errors;
         delete[] Frame->Video_STA_Errors;
+        delete[] Frame->Audio_Data_Errors;
     }
 }
 
@@ -122,6 +123,12 @@ void file::AddFrame(const MediaInfo_Event_DvDif_Analysis_Frame_1* FrameData)
         size_t SizeToCopy = FrameData->Video_STA_Errors_Count * sizeof(size_t);
         ToPush->Video_STA_Errors = new size_t[SizeToCopy];
         std::memcpy(ToPush->Video_STA_Errors, FrameData->Video_STA_Errors, SizeToCopy);
+    }
+    if (FrameData->Audio_Data_Errors)
+    {
+        size_t SizeToCopy = FrameData->Audio_Data_Errors_Count * sizeof(size_t);
+        ToPush->Audio_Data_Errors = new size_t[SizeToCopy];
+        std::memcpy(ToPush->Audio_Data_Errors, FrameData->Audio_Data_Errors, SizeToCopy);
     }
     PerFrame.push_back(ToPush);
 }
