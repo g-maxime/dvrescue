@@ -50,6 +50,8 @@ void __stdcall Event_CallBackFunction(unsigned char* Data_Content, size_t Data_S
 //---------------------------------------------------------------------------
 file::file(const String& FileName)
 {
+    FrameNumber = 0;
+
     MI.Option(__T("File_Event_CallBackFunction"), __T("CallBack=memory://") + Ztring::ToZtring((size_t)&Event_CallBackFunction) + __T(";UserHandler=memory://") + Ztring::ToZtring((size_t)this));
     MI.Option(__T("File_DvDif_Analysis"), __T("1"));
     MI.Open(FileName);
@@ -60,7 +62,6 @@ file::file(const String& FileName)
         FrameRate = Ztring(MI.Get(Stream_Video, 0, __T("FrameRate"))).To_float64();
     if (!FrameRate || (FrameRate >= 29.97 && FrameRate <= 29.98))
         FrameRate = double(30 / 1.001); // Default if no frame rate available, or better rounding
-    FrameNumber = 0;
 }
 
 //---------------------------------------------------------------------------
@@ -71,6 +72,11 @@ file::~file()
         delete[] Frame->Errors;
         delete[] Frame->Video_STA_Errors;
         delete[] Frame->Audio_Data_Errors;
+        delete Frame;
+    }
+    for (auto& Change : PerChange)
+    {
+        delete Change;
     }
 }
 
@@ -89,13 +95,16 @@ void file::AddChange(const MediaInfo_Event_DvDif_Change_0* FrameData)
         const auto Current = PerChange.back();
         if (Current->Width == FrameData->Width
             && Current->Height == FrameData->Height
+            && Current->VideoChromaSubsampling == FrameData->VideoChromaSubsampling
+            && Current->VideoScanType == FrameData->VideoScanType
             && Current->VideoRatio_N == FrameData->VideoRatio_N
             && Current->VideoRatio_D == FrameData->VideoRatio_D
             && Current->VideoRate_N == FrameData->VideoRate_N
             && Current->VideoRate_D == FrameData->VideoRate_D
             && Current->AudioRate_N == FrameData->AudioRate_N
             && Current->AudioRate_D == FrameData->AudioRate_D
-            && Current->AudioChannels == FrameData->AudioChannels)
+            && Current->AudioChannels == FrameData->AudioChannels
+            && Current->AudioBitDepth == FrameData->AudioBitDepth)
         {
             return;
         }

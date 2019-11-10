@@ -81,9 +81,13 @@ return_value Parse(Core &C, int argc, const char* argv_ansi[])
     return_value ReturnValue = Parse(C, argc, argv_ansi, argv);
 
     // Manage memory
-#if defined(UNICODE) && defined(_WIN32)
+#ifdef UNICODE
+#ifdef _WIN32
     LocalFree(argv);
-#endif
+#else //WIN32
+    delete[] argv;
+#endif //WIN32
+#endif //UNICODE
 
     return ReturnValue;
 }

@@ -218,7 +218,7 @@ string OutputXml(std::vector<file*>& PerFile)
                 if (FrameNumber)
                     Text += "\t\t</frames>\n";
 
-                auto Change = *PerChange_Next;
+                const auto Change = *PerChange_Next;
                 PerChange_Next++;
                 Text += "\t\t<frames";
                 {
