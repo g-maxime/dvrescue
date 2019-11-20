@@ -5,6 +5,8 @@ cmake_minimum_required(VERSION 2.8.11)
 find_package(ZenLib REQUIRED)
 find_package(MediaInfoLib REQUIRED)
 
+set(CMAKE_THREAD_PREFER_PTHREAD ON)
+
 set(dvrescue_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 set(dvrescue_SOURCES_PATH ${dvrescue_ROOT_PATH}/Source)
 
@@ -27,6 +29,8 @@ set(dvrescue_TOOLS
 )
 
 add_executable(dvrescue ${dvrescue_SRCS})
+
+set_target_properties(dvrescue PROPERTIES CXX_STANDARD 11)
 target_include_directories(dvrescue PRIVATE ${dvrescue_SOURCES_PATH})
 target_link_libraries(dvrescue ${ZenLib_LIBRARY} ${MediaInfoLib_LIBRARY})
 
