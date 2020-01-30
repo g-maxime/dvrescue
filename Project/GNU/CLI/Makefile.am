@@ -27,7 +27,7 @@ bin_SCRIPTS = \
 
 AM_TESTS_FD_REDIRECT = 9>&2
 
-TESTS = test/simple.sh test/framediscontinuity.sh
+TESTS = test/simple.sh test/xml.sh test/webvtt.sh test/framediscontinuity.sh
 
 TESTING_DIR = test/TestingFiles
 
