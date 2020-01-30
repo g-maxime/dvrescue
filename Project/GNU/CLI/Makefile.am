@@ -6,8 +6,10 @@ dvrescue_SOURCES = \
     ../../../Source/CLI/CLI_Main.cpp \
     ../../../Source/CLI/CommandLine_Parser.cpp \
     ../../../Source/Common/Core.cpp \
-    ../../../Source/Common/ProcessFile.cpp \
-    ../../../Source/Common/XmlOutput.cpp
+    ../../../Source/Common/Output.cpp \
+    ../../../Source/Common/Output_Xml.cpp \
+    ../../../Source/Common/Output_Webvtt.cpp \
+    ../../../Source/Common/ProcessFile.cpp
 
 INCLUDES = -I../../../Source \
            -I../../../../MediaInfoLib/Source \

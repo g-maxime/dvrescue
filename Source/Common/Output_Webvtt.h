@@ -12,4 +12,4 @@ using namespace std;
 class file;
 //---------------------------------------------------------------------------
 
-string OutputXml(vector<file*>& PerFile);
+string Output_Webvtt(vector<file*>& PerFile);

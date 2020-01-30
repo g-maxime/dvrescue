@@ -7,7 +7,8 @@
 //---------------------------------------------------------------------------
 #include "Common/Core.h"
 #include "Common/ProcessFile.h"
-#include "Common/XmlOutput.h"
+#include "Common/Output_Xml.h"
+#include "Common/Output_Webvtt.h"
 #include "ZenLib/Ztring.h"
 using namespace ZenLib;
 //---------------------------------------------------------------------------
@@ -32,13 +33,44 @@ Core::~Core()
 //***************************************************************************
 
 //---------------------------------------------------------------------------
-void Core::Process()
+return_value Core::Process()
 {
+    // Analyze files
     PerFile_Clear();
-    
     PerFile.reserve(Inputs.size());
     for (const auto& Input : Inputs)
         PerFile.push_back(new file(Input));
+
+    // Set output defaults
+    return_value ToReturn = ReturnValue_OK;
+    if (!XmlFile)
+        XmlFile = Out;
+
+    // XML
+    if (XmlFile)
+    {
+        *XmlFile << Output_Xml(PerFile);
+        if (XmlFile->bad())
+        {
+            if (Err)
+                *Err << "Error: can not write to XML output.\n";
+            ToReturn = ReturnValue_ERROR;
+        }
+    }
+
+    // WebVTT
+    if (WebvttFile)
+    {
+        *WebvttFile << Output_Webvtt(PerFile);
+        if (WebvttFile->bad())
+        {
+            if (Err)
+                *Err << "Error: can not write to WebVTT output.\n";
+            ToReturn = ReturnValue_ERROR;
+        }
+    }
+
+    return ToReturn;
 }
 
 //---------------------------------------------------------------------------
@@ -48,16 +80,6 @@ float Core::State ()
     for (const auto& File : PerFile)
         Total += File->MI.State_Get();
     return (((float)Total)/PerFile.size()/10000);
-}
-
-//***************************************************************************
-// Output
-//***************************************************************************
-
-//---------------------------------------------------------------------------
-string Core::OutputXml()
-{
-    return ::OutputXml(PerFile);
 }
 
 //***************************************************************************

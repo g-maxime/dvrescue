@@ -5,117 +5,19 @@
  */
 
 //---------------------------------------------------------------------------
-#include "Common/XmlOutput.h"
+#include "Common/Output.h"
+#include "Common/Output_Xml.h"
 #include "Common/ProcessFile.h"
 #include "ZenLib/Ztring.h"
 using namespace ZenLib;
 //---------------------------------------------------------------------------
 
 //***************************************************************************
-// Sizes
-//***************************************************************************
-
-const auto Sta_Bits = 4;
-const auto Dseq_Bits = 4;
-const auto Sta_Size = 1 << Sta_Bits;
-const auto Dseq_Size = 1 << Dseq_Bits;
-const auto DseqSta_Size = Dseq_Size * Sta_Size;
-
-//***************************************************************************
-// Strings
-//***************************************************************************
-
-const size_t chroma_subsampling_size = 3;
-const char* chroma_subsampling[chroma_subsampling_size] =
-{
-    "4:1:1",
-    "4:2:0",
-    "4:2:2",
-};
-
-//***************************************************************************
 // Helpers
 //***************************************************************************
 
 //---------------------------------------------------------------------------
-string TimeCode2String(int Seconds, bool DropFrame, int Frames)
-{
-    string Value("00:00:00:00");
-    Value[0] += Seconds / 36000; Seconds %= 36000;
-    Value[1] += Seconds / 3600; Seconds %= 3600;
-    Value[3] += Seconds / 600; Seconds %= 600;
-    Value[4] += Seconds / 60; Seconds %= 60;
-    Value[6] += Seconds / 10; Seconds %= 10;
-    Value[7] += Seconds;
-    if (Frames < 100)
-    {
-        if (DropFrame)
-            Value[8] = ';';
-        Value[9] += Frames / 10;
-        Value[10] += Frames % 10;
-    }
-    else
-        Value.resize(8);
-
-    return Value;
-}
-
-//---------------------------------------------------------------------------
-string to_timestamp(double Seconds_Float)
-{
-    if (Seconds_Float >= 360000)
-        return string(); // Not supported
-    string Value("00:00:00.000");
-    auto Seconds = int(Seconds_Float);
-    Seconds_Float -= Seconds;
-    Seconds_Float *= 1000;
-    auto MilliSeconds = int(Seconds_Float);
-    Seconds_Float -= MilliSeconds;
-    if (Seconds_Float >= 0.5)
-        MilliSeconds++;
-    Value[0] += Seconds / 36000; Seconds %= 36000;
-    Value[1] += Seconds / 3600; Seconds %= 3600;
-    Value[3] += Seconds / 600; Seconds %= 600;
-    Value[4] += Seconds / 60; Seconds %= 60;
-    Value[6] += Seconds / 10; Seconds %= 10;
-    Value[7] += Seconds;
-    Value[9] += MilliSeconds / 100; MilliSeconds %= 100;
-    Value[10] += MilliSeconds / 10; MilliSeconds %= 10;
-    Value[11] += MilliSeconds;
-
-    return Value;
-}
-
-//---------------------------------------------------------------------------
-string Date2String(int Years, int Months, int Days)
-{
-    string Value("2000-00-00");
-    if (Years >= 70) // Arbitrary decided
-    {
-        Value[0] = '1';
-        Value[1] = '9';
-    }
-    Value[2] += Years / 10;
-    Value[3] += Years % 10;
-    Value[5] += Months / 10;
-    Value[6] += Months % 10;
-    Value[8] += Days / 10;
-    Value[9] += Days % 10;
-
-    return Value;
-}
-
-//---------------------------------------------------------------------------
-char to_hex4(int Value)
-{
-    if (Value >= 16)
-        return 'X';
-    if (Value >= 10)
-        return 'A' - 10 + Value;
-    return '0' + Value;
-}
-
-void Xml_Dseq_Begin(string& Text, size_t o, int Dseq)
+static void Dseq_Begin(string& Text, size_t o, int Dseq)
 {
     Text.append(o, '\t');
     Text += "<dseq n=\"";
@@ -123,13 +25,15 @@ void Xml_Dseq_Begin(string& Text, size_t o, int Dseq)
     Text += "\">\n";
 }
 
-void Xml_Dseq_End(string& Text, size_t o)
+//---------------------------------------------------------------------------
+static void Dseq_End(string& Text, size_t o)
 {
     Text.append(o, '\t');
     Text += "</dseq>\n";
 }
 
-void Xml_Sta_Element(string& Text, size_t o, int Sta, size_t n, size_t n_even = size_t(-1))
+//---------------------------------------------------------------------------
+static void Sta_Element(string& Text, size_t o, int Sta, size_t n, size_t n_even = size_t(-1))
 {
     if (!n)
         return;
@@ -149,17 +53,19 @@ void Xml_Sta_Element(string& Text, size_t o, int Sta, size_t n, size_t n_even = 
     Text += "/>\n";
 }
 
-void Xml_Sta_Elements(string& Text, size_t o, const size_t* const Stas, const size_t* const Stas_even = nullptr)
+//---------------------------------------------------------------------------
+static void Sta_Elements(string& Text, size_t o, const size_t* const Stas, const size_t* const Stas_even = nullptr)
 {
     for (auto Sta = 0; Sta < Sta_Size; Sta++)
     {
         auto n = Stas[Sta];
         auto n_even = Stas_even == nullptr ? size_t(-1) : Stas_even[Sta];
-        Xml_Sta_Element(Text, o, Sta, n, n_even);
+        Sta_Element(Text, o, Sta, n, n_even);
     }
 }
 
-void Xml_Aud_Element(string& Text, size_t o, size_t n, size_t n_even = size_t(-1))
+//---------------------------------------------------------------------------
+static void Aud_Element(string& Text, size_t o, size_t n, size_t n_even = size_t(-1))
 {
     if (!n)
         return;
@@ -182,7 +88,7 @@ void Xml_Aud_Element(string& Text, size_t o, size_t n, size_t n_even = size_t(-1
 //***************************************************************************
 
 //---------------------------------------------------------------------------
-string OutputXml(std::vector<file*>& PerFile)
+string Output_Xml(std::vector<file*>& PerFile)
 {
     string Text;
 
@@ -209,8 +115,7 @@ string OutputXml(std::vector<file*>& PerFile)
         for (const auto& Frame : File->PerFrame)
         {
             decltype(FrameNumber_Max) FrameNumber = &Frame - &*File->PerFrame.begin();
-            auto ShowFrame = ShowFrames || Frame->Video_STA_Errors || Frame->Audio_Data_Errors || FrameNumber == FrameNumber_Max
-                || ((Frame->TimeCode >> 30) & 0x1) || ((Frame->RecordedDateTime1 >> 30) & 0x1) || (Frame->Arb & (1 << 6)); // Non consecutive
+            auto ShowFrame = ShowFrames || FrameNumber == FrameNumber_Max || Frame_HasErrors(Frame);
 
             if (ShowFrames)
             {
@@ -231,13 +136,13 @@ string OutputXml(std::vector<file*>& PerFile)
                 {
                     auto TimeStamp_Begin = FrameNumber / File->FrameRate;
                     Text += " pts=\"";
-                    Text += to_timestamp(TimeStamp_Begin);
+                    Text += seconds_to_timestamp(TimeStamp_Begin);
                     Text += '\"';
                 }
                 {
                     auto TimeStamp_End = (PerChange_Next != File->PerChange.end() ? (*PerChange_Next)->FrameNumber : (FrameNumber_Max + 1)) / File->FrameRate;
                     Text += " end_pts=\"";
-                    Text += to_timestamp(TimeStamp_End);
+                    Text += seconds_to_timestamp(TimeStamp_End);
                     Text += '\"';
                 }
                 if (Change->Width && Change->Height)
@@ -314,7 +219,7 @@ string OutputXml(std::vector<file*>& PerFile)
                 }
                 {
                     Text += " pts=\"";
-                    Text += to_timestamp(TimeStamp);
+                    Text += seconds_to_timestamp(TimeStamp);
                     Text += '\"';
                 }
 
@@ -324,7 +229,7 @@ string OutputXml(std::vector<file*>& PerFile)
                 {
                     auto TimeCode_DropFrame = Frame->TimeCode & 0x00000080 ? true : false;
                     auto TimeCode_Frames = Frame->TimeCode & 0x3F;
-                    Text += " tc=\"" + TimeCode2String(TimeCode_Seconds, TimeCode_DropFrame, TimeCode_Frames) + "\"";
+                    Text += " tc=\"" + timecode_to_string(TimeCode_Seconds, TimeCode_DropFrame, TimeCode_Frames) + "\"";
                 }
                 if ((Frame->TimeCode >> 31) & 0x1) // Repeat
                 {
@@ -342,7 +247,7 @@ string OutputXml(std::vector<file*>& PerFile)
                 {
                     auto RecDateTime_Months = (Frame->RecordedDateTime2 >> 12) & 0x0F;
                     auto RecDateTime_Days = (Frame->RecordedDateTime2 >> 8) & 0x1F;
-                    RecDateTime_String = Date2String(RecDateTime_Years, RecDateTime_Months, RecDateTime_Days);
+                    RecDateTime_String = date_to_string(RecDateTime_Years, RecDateTime_Months, RecDateTime_Days);
                 }
                 auto RecDateTime_Seconds = Frame->RecordedDateTime1 & 0x1FFFF;
                 if (RecDateTime_Seconds != 0x1FFFF)
@@ -351,7 +256,7 @@ string OutputXml(std::vector<file*>& PerFile)
                         RecDateTime_String += ' ';
                     auto RecDateTime_DropFrame = Frame->TimeCode & 0x00000080 ? true : false;
                     auto RecDateTime_Frames = Frame->RecordedDateTime2 & 0x7F;
-                    RecDateTime_String += TimeCode2String(RecDateTime_Seconds, RecDateTime_DropFrame, RecDateTime_Frames);
+                    RecDateTime_String += timecode_to_string(RecDateTime_Seconds, RecDateTime_DropFrame, RecDateTime_Frames);
                 }
                 if (!RecDateTime_String.empty())
                     Text += " rdt=\"" + RecDateTime_String + "\"";
@@ -373,24 +278,18 @@ string OutputXml(std::vector<file*>& PerFile)
                 }
 
                 // Arb
-                auto Arb = Frame->Arb;
-                if (Arb & (1 << 4)) // Value
+                auto Arb = frame_arb(Frame->Arb);
+                if (Arb.HasValue())
                 {
-                    auto Arb_Value = Arb & 0xF;
-                    char Arb_Char;
-                    if (Arb_Value < 10)
-                        Arb_Char = '0' + Arb_Value;
-                    else 
-                        Arb_Char = 'A' + Arb_Value - 10;
-                    Text += string(" arb=\"") + Arb_Char + "\"";
+                    Text += string(" arb=\"") + uint4_to_hex4(Arb.Value()) + "\"";
                 }
-                if (Arb & (1 << 7)) // Repeat
+                if (Arb.Repeat())
                 {
-                    Text += (" arb_r=\"1\"");
+                    Text += " arb_r=\"1\"";
                 }
-                if (Arb & (1 << 6)) // Non consecutive
+                if (Arb.NonConsecutive())
                 {
-                    Text += (" arb_nc=\"1\"");
+                    Text += " arb_nc=\"1\"";
                 }
 
                 // Errors
@@ -402,74 +301,23 @@ string OutputXml(std::vector<file*>& PerFile)
                     if (Frame->Video_STA_Errors_Count == DseqSta_Size || Frame->Audio_Data_Errors_Count == Dseq_Size)
                     {
                         // Compute
-                        size_t Video_Sta_TotalPerSta[Sta_Size];
-                        memset(Video_Sta_TotalPerSta, 0, Sta_Size * sizeof(size_t));
-                        size_t Video_Sta_EvenTotalPerSta[Sta_Size];
-                        memset(Video_Sta_EvenTotalPerSta, 0, Sta_Size * sizeof(size_t));
-                        size_t Audio_Data_Total = 0;
-                        size_t Audio_Data_EvenTotal = 0;
-                        for (auto Dseq = 0; Dseq < Dseq_Size; Dseq++)
-                        {
-                            // Compute
-                            size_t Video_Sta_TotalPerDseqPerSta[Sta_Size];
-                            memset(Video_Sta_TotalPerDseqPerSta, 0, Sta_Size * sizeof(size_t));
-                            size_t Video_Sta_EvenTotalPerDseqPerSta[Sta_Size];
-                            memset(Video_Sta_EvenTotalPerDseqPerSta, 0, Sta_Size * sizeof(size_t));
-                            size_t Audio_Data_TotalPerDseq[Dseq_Size];
-                            memset(Audio_Data_TotalPerDseq, 0, Dseq_Size * sizeof(size_t));
-                            size_t Audio_Data_EvenTotalPerDseq[Dseq_Size];
-                            memset(Audio_Data_EvenTotalPerDseq, 0, Dseq_Size * sizeof(size_t));
-                            bool HasErrors = false;
-                            for (auto Sta = 0; Sta < Sta_Size; Sta++)
-                            {
-                                if (Frame->Video_STA_Errors)
-                                {
-                                    auto DseqSta = (Dseq << Sta_Bits) | Sta;
-                                    const auto n = Frame->Video_STA_Errors[DseqSta];
-                                    if (n)
-                                    {
-                                        if (!HasErrors)
-                                            HasErrors = true;
-                                        Video_Sta_TotalPerDseqPerSta[Sta] += n;
-                                        Video_Sta_TotalPerSta[Sta] += n;
-                                        if (!(Dseq % 2))
-                                        {
-                                            Video_Sta_EvenTotalPerDseqPerSta[Sta] += n;
-                                            Video_Sta_EvenTotalPerSta[Sta] += n;
-                                        }
-                                    }
-                                }
-                            }
-                            if (Frame->Audio_Data_Errors)
-                            {
-                                const auto n = Frame->Audio_Data_Errors[Dseq];
-                                if (n)
-                                {
-                                    if (!HasErrors)
-                                        HasErrors = true;
-                                    Audio_Data_TotalPerDseq[Dseq] += n;
-                                    Audio_Data_Total += n;
-                                    if (!(Dseq % 2))
-                                    {
-                                        Audio_Data_EvenTotalPerDseq[Dseq] += n;
-                                        Audio_Data_EvenTotal += n;
-                                    }
-                                }
-                            }
+                        computed_errors ComputedErrors;
 
-                            // Display
-                            if (HasErrors)
+                        for (int Dseq = 0; Dseq < Dseq_Size; Dseq++)
+                        {
+                            if (ComputedErrors.Compute(*Frame, Dseq))
                             {
-                                Xml_Dseq_Begin(Text, 4, Dseq);
-                                Xml_Sta_Elements(Text, 5, Video_Sta_TotalPerDseqPerSta);
-                                Xml_Aud_Element(Text, 5, Audio_Data_TotalPerDseq[Dseq]);
-                                Xml_Dseq_End(Text, 4);
+                                // Display
+                                Dseq_Begin(Text, 4, Dseq);
+                                Sta_Elements(Text, 5, ComputedErrors.PerDseq.Video_Sta_TotalPerSta);
+                                Aud_Element(Text, 5, ComputedErrors.PerDseq.Audio_Data_Total);
+                                Dseq_End(Text, 4);
                             }
                         }
 
                         // Display
-                        Xml_Sta_Elements(Text, 4, Video_Sta_TotalPerSta, Video_Sta_EvenTotalPerSta);
-                        Xml_Aud_Element(Text, 4, Audio_Data_Total, Audio_Data_EvenTotal);
+                        Sta_Elements(Text, 4, ComputedErrors.Video_Sta_TotalPerSta, ComputedErrors.Video_Sta_EvenTotalPerSta);
+                        Aud_Element(Text, 4, ComputedErrors.Audio_Data_Total, ComputedErrors.Audio_Data_EvenTotal);
                     }
 
                     Text += "\t\t\t</frame>\n";

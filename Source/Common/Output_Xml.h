@@ -6,13 +6,10 @@
 
 //---------------------------------------------------------------------------
 #pragma once
-#include "Common/Config.h"
-class Core;
+#include <vector>
+#include <string>
+using namespace std;
+class file;
 //---------------------------------------------------------------------------
 
-//***************************************************************************
-// Command line parser
-//***************************************************************************
-
-return_value Parse(Core &C, int argc, const char* argv[]);
-void Clean(Core& C);
+string Output_Xml(vector<file*>& PerFile);
