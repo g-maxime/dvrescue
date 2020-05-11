@@ -1,0 +1,5 @@
+Demo_DV_720x480_CC.mov --cc-output;scc1.scc scc1.scc;b670175b6eb427b1e7beab034d9b5736
+Demo_DV_720x480_CC.mov --cc-output;scc2.scc;--cc-tc;dv scc2.scc;a32289ae05b4517f5c9c9d667bfd3263
+Demo_DV_720x480_CC.mov --cc-output;scc3.scc;--cc-tc;01:00:00:00 scc3.scc;ec69680eaba65ef91c0200cd67eef537
+Demo_DV_720x480_CC.mov --cc-output;srt1.srt srt1.cc1.srt;43504bf97a5687ae15172d6abdb1747d
+Demo_DV_720x480_CC.mov --cc-output;screen1.screen screen1.cc1.screen;c0a668d0afff09753809d1f0d91ca5a8
