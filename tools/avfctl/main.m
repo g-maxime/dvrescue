@@ -24,6 +24,8 @@ void help(BOOL full)
         [output appendString:@"-device <arg>\n"];
         [output appendString:@"Specify the device to send commands to. <arg> is required and is the index of the device as shown in -list_devices.\n"];
         [output appendString:@"If not specified, device with the index \"0\" is used by default.\n\n"];
+        [output appendString:@"-foreground\n"];
+        [output appendString:@"Stay at foreground during play, ff or rew operation.\n\n"];
         [output appendString:@"-cmd <arg>\n"];
         [output appendString:@"  play      Set speed to 1.0 and mode to play.\n"];
         [output appendString:@"  stop      Set speed to 0.0 and mode to no-play.\n"];
@@ -53,7 +55,9 @@ int get_device_idx(NSString *str)
 int main(int argc, char *argv[])
 {
     int device_idx = 0;
+    bool foreground = false;
     NSString *output_filename = @"out.dv";
+
     AVCaptureDevice *device = nil;
 
     NSMutableDictionary *args = [[NSMutableDictionary alloc] init];
@@ -62,6 +66,8 @@ int main(int argc, char *argv[])
     for (int pos = 0; pos < [arguments count]; pos++) {
         if ([[arguments objectAtIndex:pos] isEqualTo: @"-list_devices"]) {
             [args setObject: @YES forKey: @"list_devices"];
+        } else if ([[arguments objectAtIndex:pos] isEqualTo: @"-foreground"]) {
+            foreground = true;
         } else if ([[arguments objectAtIndex:pos] isEqualTo: @"-device"]) {
             if (++pos < [arguments count]) {
                 device_idx = get_device_idx([arguments objectAtIndex:pos]);
@@ -137,6 +143,8 @@ int main(int argc, char *argv[])
             [cmd isEqualToString:@"play"]) {
             // do PLAY
             [avfctl setPlaybackMode:AVCaptureDeviceTransportControlsPlayingMode speed:1.0f];
+            if (foreground)
+                [avfctl waitForSessionEnd];
         } else if ([cmd isEqualToString:@"STOP"] ||
                    [cmd isEqualToString:@"stop"]) {
             // do STOP
@@ -145,10 +153,14 @@ int main(int argc, char *argv[])
                    [cmd isEqualToString:@"rew"]) {
             // do REW
             [avfctl setPlaybackMode:AVCaptureDeviceTransportControlsNotPlayingMode speed:-2.0f];
+            if (foreground)
+                [avfctl waitForSessionEnd];
         } else if ([cmd isEqualToString:@"FF"] ||
                    [cmd isEqualToString:@"ff"]) {
             // do FF
             [avfctl setPlaybackMode:AVCaptureDeviceTransportControlsNotPlayingMode speed:2.0f];
+            if (foreground)
+                [avfctl waitForSessionEnd];
         } else if ([cmd isEqualToString:@"CAPTURE"] ||
                    [cmd isEqualToString:@"capture"]) {
             // do CAPTURE
@@ -156,11 +168,8 @@ int main(int argc, char *argv[])
             [avfctl startCaptureSession];
             [avfctl setPlaybackMode:AVCaptureDeviceTransportControlsPlayingMode speed:1.0f];
 
-            // block as long as the capture session is running
-            // terminates if playback mode changes to NotPlaying (observed in avfctl)
-            // busy waiting, do not use in production!
-            while([avfctl.session isRunning]) {
-            }
+
+            [avfctl waitForSessionEnd];
 
             [avfctl stopCaptureSession]; // redundant for internal errors in the session
         } else {
