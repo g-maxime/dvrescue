@@ -24,6 +24,8 @@ void help(BOOL full)
         [output appendString:@"-device <arg>\n"];
         [output appendString:@"Specify the device to send commands to. <arg> is required and is the index of the device as shown in -list_devices.\n"];
         [output appendString:@"If not specified, device with the index \"0\" is used by default.\n\n"];
+        [output appendString:@"-status\n"];
+        [output appendString:@"Show the current status of the device.\n\n"];
         [output appendString:@"-foreground\n"];
         [output appendString:@"Stay at foreground during play, ff or rew operation.\n\n"];
         [output appendString:@"-cmd <arg>\n"];
@@ -68,6 +70,8 @@ int main(int argc, char *argv[])
             [args setObject: @YES forKey: @"list_devices"];
         } else if ([[arguments objectAtIndex:pos] isEqualTo: @"-foreground"]) {
             foreground = true;
+        } else if ([[arguments objectAtIndex:pos] isEqualTo: @"-status"]) {
+            [args setObject: @YES forKey: @"print_status"];
         } else if ([[arguments objectAtIndex:pos] isEqualTo: @"-device"]) {
             if (++pos < [arguments count]) {
                 device_idx = get_device_idx([arguments objectAtIndex:pos]);
@@ -131,6 +135,26 @@ int main(int argc, char *argv[])
         NSLog(@"Transport Controls not supported for device [%d] %s.", device_idx, [[device localizedName] UTF8String]);
         return 1;
     }
+
+    // Print status if requested
+    if ([[args objectForKey:@"print_status"] isEqualTo: @YES]) {
+        NSString *status;
+
+        float speed = [device transportControlsSpeed];
+        if (speed == 0.0f) {
+            status = @"stopped";
+        } else if (speed == 1.0f) {
+            status = @"playing";
+        } else if (speed > 1.0f) {
+            status = @"fast-forwarding";
+        } else if (speed < 0.0f) {
+            status = @"rewinding";
+        } else {
+            status = @"unknown";
+        }
+
+        NSLog(@"Device [%d] %@ status: %@", device_idx, [device localizedName], status);
+   }
 
     // create AVFCTL with device
     AVFCtl *avfctl = [[AVFCtl alloc] initWithDevice: device];
