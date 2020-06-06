@@ -65,6 +65,11 @@
 
         keyPath = NSStringFromSelector(@selector(transportControlsSpeed));
         [_device addObserver:self forKeyPath:keyPath options:options context:nil];
+
+        keyPath = NSStringFromSelector(@selector(isInUseByAnotherApplication));
+        [_device addObserver:self forKeyPath:keyPath options:options context:nil];
+
+
     }
     return self;
 }
@@ -77,6 +82,9 @@
         [_device removeObserver:self forKeyPath:keyPath];
 
         keyPath = NSStringFromSelector(@selector(transportControlsSpeed));
+        [_device removeObserver:self forKeyPath:keyPath];
+
+       keyPath = NSStringFromSelector(@selector(isInUseByAnotherApplication));
         [_device removeObserver:self forKeyPath:keyPath];
 }
 
@@ -107,6 +115,8 @@
                 NSLog(@"Speed changed: %f -> %f", _old_speed, speed);
                 _old_speed = speed;
             }
+        } else if ([keyPath isEqualToString:NSStringFromSelector(@selector(isInUseByAnotherApplication))]) {
+	NSLog(@"In use: %@", change);
         }
     } else {
         [super observeValueForKeyPath:keyPath
@@ -119,6 +129,26 @@
 - (NSString*) getDeviceName
 {
     return [_device localizedName];
+}
+
+- (NSString*) getStatus
+{
+    NSString *status;
+
+    float speed = [_device transportControlsSpeed];
+    if (speed == 0.0f) {
+        status = @"stopped";
+    } else if (speed == 1.0f) {
+        status = @"playing";
+    } else if (speed > 1.0f) {
+        status = @"fast-forwarding";
+    } else if (speed < 0.0f) {
+        status = @"rewinding";
+    } else {
+        status = @"unknown";
+    }
+
+    return status;
 }
 
 - (void) setPlaybackMode:(AVCaptureDeviceTransportControlsPlaybackMode)theMode speed:(AVCaptureDeviceTransportControlsSpeed) theSpeed;
@@ -211,10 +241,18 @@
 
 - (void) waitForSessionEnd
 {
+      NSKeyValueObservingOptions options = NSKeyValueObservingOptionNew;
+        NSString *keyPath = nil;
+
+
+        keyPath = NSStringFromSelector(@selector(transportControlsSpeed));
+        [_device addObserver:self forKeyPath:keyPath options:options context:nil];
+
     // block as long as the capture session is running
     // terminates if playback mode changes to NotPlaying
     while ([_device transportControlsSpeed] != 0.0f) {
-        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:1]];
+        NSLog(@"Speed: %f", [_device transportControlsSpeed]);
+        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.5f]];
     }
 }
 

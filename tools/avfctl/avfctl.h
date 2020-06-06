@@ -39,6 +39,7 @@
 - (void) dealloc;
 
 - (NSString*) getDeviceName;
+- (NSString*) getStatus;
 
 - (void) setPlaybackMode:(AVCaptureDeviceTransportControlsPlaybackMode)theMode speed:(AVCaptureDeviceTransportControlsSpeed) theSpeed;
 - (void) createCaptureSessionWithOutputFileName:(NSString*) theFileName;

@@ -136,28 +136,13 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // Print status if requested
-    if ([[args objectForKey:@"print_status"] isEqualTo: @YES]) {
-        NSString *status;
-
-        float speed = [device transportControlsSpeed];
-        if (speed == 0.0f) {
-            status = @"stopped";
-        } else if (speed == 1.0f) {
-            status = @"playing";
-        } else if (speed > 1.0f) {
-            status = @"fast-forwarding";
-        } else if (speed < 0.0f) {
-            status = @"rewinding";
-        } else {
-            status = @"unknown";
-        }
-
-        NSLog(@"Device [%d] %@ status: %@", device_idx, [device localizedName], status);
-   }
-
     // create AVFCTL with device
     AVFCtl *avfctl = [[AVFCtl alloc] initWithDevice: device];
+
+    // Print status if requested
+    if ([[args objectForKey:@"print_status"] isEqualTo: @YES]) {
+        NSLog(@"Device [%d] %@ status: %@", device_idx, [device localizedName], [avfctl getStatus]);
+    }
 
     // execute command
     if ([args objectForKey:@"cmd"]) {
@@ -176,6 +161,8 @@ int main(int argc, char *argv[])
         } else if ([cmd isEqualToString:@"REW"] ||
                    [cmd isEqualToString:@"rew"]) {
             // do REW
+            [avfctl createCaptureSessionWithOutputFileName:@"/dev/null"];
+            [avfctl startCaptureSession];
             [avfctl setPlaybackMode:AVCaptureDeviceTransportControlsNotPlayingMode speed:-2.0f];
             if (foreground)
                 [avfctl waitForSessionEnd];
