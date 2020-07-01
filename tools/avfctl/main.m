@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
     if ([[args objectForKey:@"list_devices"] isEqualTo: @YES]) {
         NSLog(@"Devices:");
         for (AVCaptureDevice *device in devices) {
-            NSLog(@"[%ld] %s", [devices indexOfObject:device], [[device localizedName] UTF8String]);
+            NSLog(@"[%ld] %@ (manufacturer: %@, modelID: %@, uniqueID: %@)", [devices indexOfObject:device], [device localizedName], [device manufacturer], [device modelID], [device uniqueID]);
         }
     }
 
