@@ -1,4 +1,7 @@
 QT += qml quick widgets quickcontrols2
+macx {
+    QT+= concurrent
+}
 
 CONFIG += c++17
 CONFIG += no_keywords
