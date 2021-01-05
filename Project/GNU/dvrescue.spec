@@ -11,7 +11,7 @@
 Name:			dvrescue
 Version:		%dvrescue_version
 Release:		1
-Summary:		Data migration from DV tapes into digital files suitable for long-term preservation
+Summary:		Convert DV tapes into digital files suitable for long-term preservation
 Group:			Productivity/Multimedia/Other
 License:		BSD-3-Clause
 URL:			https://MediaArea.net/DVRescue
@@ -41,8 +41,59 @@ BuildRequires:  libopenssl-devel
 %endif
 %endif
 
+%package gui
+Summary:	Convert DV tapes into digital files suitable for long-term preservation (GUI)
+Group:		Productivity/Multimedia/Other
+
+%if 0%{?fedora_version} || 0%{?centos} >= 7
+BuildRequires:  pkgconfig(Qt5)
+BuildRequires:  pkgconfig(Qt5QuickControls2)
+BuildRequires:  pkgconfig(Qt5Svg)
+BuildRequires:  pkgconfig(Qt5XmlPatterns)
+BuildRequires:  pkgconfig(Qt5Qwt6)
+%endif
+
+%if 0%{?mageia}
+%ifarch x86_64
+BuildRequires:  lib64qt5base5-devel
+BuildRequires:  lib64qt5quicktemplates2-devel
+BuildRequires:  lib64qt5quicktemplates2_5
+BuildRequires:  lib64qt5quickcontrols2-devel
+BuildRequires:  lib64qt5quickcontrols2_5
+BuildRequires:  lib64qt5quickwidgets-devel
+BuildRequires:  lib64qt5svg-devel
+BuildRequires:  lib64qt5xmlpatterns-devel
+BuildRequires:  lib64qt5xmlpatterns5
+BuildRequires:  lib64qwt-qt5-devel
+BuildRequires:  lib64qwt-qt5_6
+%else
+BuildRequires:  libqt5base5-devel
+BuildRequires:  libqt5quicktemplates2-devel
+BuildRequires:  libqt5quicktemplates2_5
+BuildRequires:  libqt5quickcontrols2-devel
+BuildRequires:  libqt5quickcontrols2_5
+BuildRequires:  libqt5quickwidgets-devel
+BuildRequires:  libqt5svg-devel
+BuildRequires:  libqt5xmlpatterns-devel
+BuildRequires:  libqt5xmlpatterns5
+BuildRequires:  libqwt-qt5-devel
+BuildRequires:  libqwt-qt5_6
+%endif
+%endif
+
+%if 0%{?suse_version} >= 1200
+BuildRequires:  libqt5-qtbase-devel
+BuildRequires:  libqt5-qtsvg-devel
+BuildRequires:  libqt5-qtxmlpatterns-devel
+BuildRequires:  libQt5QuickControls2-devel
+BuildRequires:  qwt6-devel
+%endif
+
 %description
 Data migration from DV tapes into digital files suitable for long-term preservation
+
+%description gui
+Data migration from DV tapes into digital files suitable for long-term preservation (Graphical User Interface)
 
 %prep
 %setup -q -n dvrescue
@@ -65,10 +116,26 @@ pushd Project/GNU/CLI
 	%__make %{?jobs:-j%{jobs}}
 popd
 
+# now build GUI
+
+pushd Source/GUI/dvrescue
+	export USE_SYSTEM=true
+	qmake-qt5 -recursive
+	%__make %{?jobs:-j%{jobs}}
+popd
+
+
 %install
 pushd Project/GNU/CLI
 	%__make install DESTDIR=%{buildroot}
 popd
+
+pushd Source/GUI/dvrescue
+	%__install -D -m 755 dvrescue/dvrescue %{buildroot}%{_bindir}/dvrescue-gui
+popd
+%__install -D -m 644 Source/Resource/Image/Icon.png %{buildroot}%{_datadir}/pixmaps/dvrescue.png
+%__install -D -m 644 Project/GNU/GUI/dvrescue-gui.desktop %{buildroot}/%{_datadir}/applications/dvrescue-gui.desktop
+%__install -D -m 644 Project/GNU/GUI/dvrescue-gui.metainfo.xml %{buildroot}%{_datadir}/metainfo/dvrrescue-gui.metainfo.xml
 
 %clean
 [ -d "%{buildroot}" -a "%{buildroot}" != "" ] && %__rm -rf "%{buildroot}"
@@ -77,7 +144,21 @@ popd
 %defattr(-,root,root,-)
 %doc LICENSE.txt
 %doc History.txt
-%{_bindir}/*
+%{_bindir}/dvrescue
+%{_bindir}/dvloupe
+%{_bindir}/dvmap
+%{_bindir}/dvpackager
+%{_bindir}/dvplay
+%{_bindir}/dvsampler
+
+%files gui
+%defattr(-,root,root,-)
+%doc LICENSE.txt
+%doc History.txt
+%{_bindir}/dvrescue-gui
+%{_datadir}/pixmaps/*.png
+%{_datadir}/applications/*.desktop
+%{_datadir}/metainfo/*.xml
 
 %changelog
 * Tue Jan 01 2019 Jerome Martinez <Info@MediaArea.net> - 0.20.11-0

@@ -61,6 +61,8 @@ macx:contains(DEFINES, USE_BREW) {
 
     }
 
+    win32:FFMPEG_LIBS += -lBcrypt
+
     INCLUDEPATH += $$FFMPEG_INCLUDES
     LIBS += $$FFMPEG_LIBS
 

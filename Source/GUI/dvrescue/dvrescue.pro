@@ -50,6 +50,9 @@ contains(DEFINES, USE_BREW) {
     staticffmpeg = "CONFIG += static_ffmpeg"
     message('staticffmpeg: ' $$ffmpegLibs)
 
+    staticLibs = "CONFIG += staticlib"
+    unix:!mac:write_file($$QTAV/.qmake.conf, staticLibs, append)
+
     write_file($$QTAV/.qmake.conf, ffmpegIncludes, append)
     write_file($$QTAV/.qmake.conf, ffmpegLibs, append)
     write_file($$QTAV/.qmake.conf, staticffmpeg, append)

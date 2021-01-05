@@ -1,7 +1,7 @@
 # $Id$
 # Maintainer: MediaArea.net SARL <Info@MediaArea.net>
 
-pkgname=('dvrescue')
+pkgname=('dvrescue' 'dvrescue-gui')
 pkgver=0.20.11
 pkgrel=1
 pkgdesc="Supplies technical and tag information about a video or audio file"
@@ -10,16 +10,22 @@ license=('BSD-3-Clause')
 source=(${pkgname}_${pkgver}.orig.tar.xz)
 md5sums=('00000000000000000000000000000000')
 arch=('i686' 'x86_64')
-makedepends=('libzen>=0.4.38' 'libmediainfo>=20.09')
+makedepends=('libzen>=0.4.38' 'libmediainfo>=20.09' 'qt5-base' 'qt5-quickcontrols2' 'qt5-svg' 'qt5-xmlpatterns' 'qwt' 'qt5-tools')
 
 prepare() {
     cd "${srcdir}"/dvrescue/Project/GNU/CLI
     sh ./autogen
     ./configure --prefix=/usr
+
+    cd "${srcdir}"/dvrescue/Source/GUI/dvrescue
+    USE_SYSTEM=true qmake-qt5 -recursive BINDIR=/usr/bin
 }
 
 build() {
     cd "${srcdir}"/dvrescue/Project/GNU/CLI
+    make
+
+    cd "${srcdir}"/dvrescue/Source/GUI/dvrescue
     make
 }
 
@@ -32,4 +38,17 @@ package_dvrescue() {
 
     install -D -m 0644 "${srcdir}"/dvrescue/LICENSE.txt "${pkgdir}"/usr/share/licenses/${pkgname}/LICENSE.txt
     install -D -m 0644 "${srcdir}"/dvrescue/History.txt "${pkgdir}"/usr/share/doc/${pkgname}/History.txt
+}
+
+package_dvrescue-gui() {
+    pkgdesc="${pkgdesc} (GUI)"
+    depends=('qt5-base' 'qt5-quickcontrols2' 'qt5-svg' 'qt5-xmlpatterns' 'qwt')
+
+    install -D -m 0755 "${srcdir}"/dvrescue/Source/GUI/dvrescue/dvrescue/dvrescue "${pkgdir}"/usr/bin/dvrescue-gui
+    install -D -m 0644 "${srcdir}"/dvrescue/LICENSE.txt "${pkgdir}"/usr/share/licenses/${pkgname}/LICENSE.txt
+    install -D -m 0644 "${srcdir}"/dvrescue/History.txt "${pkgdir}"/usr/share/doc/${pkgname}/History.txt
+
+    install -D -m 0644 "${srcdir}"/dvrescue/Source/Resource/Image/Icon.png "${pkgdir}"/usr/share/pixmaps/dvrescue.png
+    install -D -m 0644 "${srcdir}"/dvrescue/Project/GNU/GUI/dvrescue-gui.desktop "${pkgdir}"/usr/share/applications/dvrescue-gui.desktop
+    install -D -m 0644 "${srcdir}"/dvrescue/Project/GNU/GUI/dvrescue-gui.metainfo.xml "${pkgdir}"/usr/share/metainfo/dvrescue-gui.metainfo.xml
 }
