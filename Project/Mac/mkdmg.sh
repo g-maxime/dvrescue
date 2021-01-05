@@ -13,9 +13,11 @@ VERSION="$3"
 
 if [ "$KIND" = "CLI" ] || [ "$KIND" = "cli" ]; then
     KIND="CLI"
+elif [ "$KIND" = "GUI" ] || [ "$KIND" = "gui" ]; then
+    KIND="GUI"
 else
     echo
-    echo "KIND must be either [CLI | cli]"
+    echo "KIND must be either [CLI | cli] or [GUI | gui]"
     echo
     exit 1
 fi
@@ -39,6 +41,7 @@ echo ========== Create the package ==========
 echo
 
 mkdir -p "${FILES}/.background"
+cp "Logo_White.icns" "${FILES}/.background"
 cp ../../LICENSE.txt "${FILES}"
 
 if [ "$KIND" = "CLI" ]; then
@@ -66,13 +69,31 @@ if [ "$KIND" = "CLI" ]; then
     cp "../../tools/dvsampler" "${FILES}-Root/usr/local/bin"
     cp "../../tools/avfctl/avfctl" "${FILES}-Root/usr/local/bin"
     cp "../../Source/CLI/dvrescue.1" "${FILES}-Root/usr/local/share/man/man1"
-    cp "Logo_White.icns" "${FILES}/.background"
     codesign -f --deep --options=runtime -s "Developer ID Application: ${SIGNATURE}" --verbose "${FILES}-Root/usr/local/bin/${APPNAME_lower}"
     codesign -f --deep --options=runtime -s "Developer ID Application: ${SIGNATURE}" --verbose "${FILES}-Root/usr/local/bin/avfctl"
 
     pkgbuild --root "${FILES}-Root" --identifier "net.MediaArea.${APPNAME_lower}.mac-${KIND_lower}" --sign "Developer ID Installer: ${SIGNATURE}" --version "${VERSION}" "${FILES}/${APPNAME_lower}.pkg"
     codesign -f --deep --options=runtime -s "Developer ID Application: ${SIGNATURE}" --verbose "${FILES}/${APPNAME_lower}.pkg"
 
+fi
+
+if [ "$KIND" = "GUI" ]; then
+    if ! test -e "../../Source/GUI/dvrescue/build/dvrescue/${APPNAME}.app"; then
+        echo
+        echo "${APPNAME}.app can’t be found, or this file isn’t a executable."
+        echo
+        exit 1
+    fi
+    cp -R "../../Source/GUI/dvrescue/build/dvrescue/${APPNAME}.app" "${FILES}"
+    # Move QtAV to the right place
+    mkdir -p "${FILES}/${APPNAME}.app/Contents/Resources/qml"
+    mv -f "${FILES}/${APPNAME}.app/Contents/MacOS/QtAV" "${FILES}/${APPNAME}.app/Contents/Resources/qml"
+    rm -f "${FILES}/${APPNAME}.app/Contents/Frameworks/libQmlAV.dylib"
+
+    find "${FILES}/${APPNAME}.app/Contents/Frameworks" -name *.framework -exec codesign -f --deep --options=runtime -s "Developer ID Application: ${SIGNATURE}" --verbose {} \;
+    find "${FILES}/${APPNAME}.app/Contents/Resources" -name *.dylib -exec codesign -f --options=runtime -s "Developer ID Application: ${SIGNATURE}" --verbose {} \;
+
+    macdeployqt "${FILES}/${APPNAME}.app" -qmldir=../../Source/GUI/dvrescue/dvrescue -codesign="Developer ID Application: ${SIGNATURE}" -hardened-runtime -timestamp -sign-for-notarization="Developer ID Application: ${SIGNATURE}"
 fi
 
 echo
@@ -88,6 +109,9 @@ DEVICE=$(hdiutil attach -readwrite -noverify "${TEMPDMG}" | egrep '^/dev/' | sed
 sleep 2
 
 cd "/Volumes/${APPNAME}"
+if [ "$KIND" = "GUI" ]; then
+    ln -s /Applications
+fi
 test -e .DS_Store && rm -fr .DS_Store
 cd - >/dev/null
 
