@@ -88,12 +88,14 @@ if [ "$KIND" = "GUI" ]; then
     # Move QtAV to the right place
     mkdir -p "${FILES}/${APPNAME}.app/Contents/Resources/qml"
     mv -f "${FILES}/${APPNAME}.app/Contents/MacOS/QtAV" "${FILES}/${APPNAME}.app/Contents/Resources/qml"
+    mkdir -p "${FILES}/${APPNAME}.app/Contents/PlugIns/av"
+    mv -f "${FILES}/${APPNAME}.app/Contents/Resources/qml/QtAV/libQmlAV.dylib" "${FILES}/${APPNAME}.app/Contents/PlugIns/av"
+    ln -s "../../../PlugIns/av/libQmlAV.dylib" "${FILES}/${APPNAME}.app/Contents/Resources/qml/QtAV/libQmlAV.dylib"
     rm -f "${FILES}/${APPNAME}.app/Contents/Frameworks/libQmlAV.dylib"
 
-    find "${FILES}/${APPNAME}.app/Contents/Frameworks" -name *.framework -exec codesign -f --deep --options=runtime -s "Developer ID Application: ${SIGNATURE}" --verbose {} \;
-    find "${FILES}/${APPNAME}.app/Contents/Resources" -name *.dylib -exec codesign -f --options=runtime -s "Developer ID Application: ${SIGNATURE}" --verbose {} \;
+    macdeployqt "${FILES}/${APPNAME}.app" -qmldir=../../Source/GUI/dvrescue/dvrescue
 
-    macdeployqt "${FILES}/${APPNAME}.app" -qmldir=../../Source/GUI/dvrescue/dvrescue -codesign="Developer ID Application: ${SIGNATURE}" -hardened-runtime -timestamp -sign-for-notarization="Developer ID Application: ${SIGNATURE}"
+    codesign --verbose --force --deep --options=runtime --sign="Developer ID Application: ${SIGNATURE}" "${FILES}/${APPNAME}.app"
 fi
 
 echo

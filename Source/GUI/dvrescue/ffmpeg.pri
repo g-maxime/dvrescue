@@ -31,9 +31,9 @@ macx:contains(DEFINES, USE_BREW) {
 
         FFMPEG_LIBS += -L$$absolute_path($$FFMPEG/lib) \
                         -lavdevice \
-                        -lavcodec \
                         -lavfilter \
                         -lavformat \
+                        -lavcodec \
                         -lpostproc \
                         -lswresample \
                         -lswscale \
@@ -51,9 +51,9 @@ macx:contains(DEFINES, USE_BREW) {
 
         FFMPEG_LIBS += \
                      -L$$FFMPEG_AVDEVICE -lavdevice \
-                     -L$$FFMPEG_AVCODEC -lavcodec \
                      -L$$FFMPEG_AVFILTER -lavfilter \
                      -L$$FFMPEG_AVFORMAT -lavformat \
+                     -L$$FFMPEG_AVCODEC -lavcodec \
                      -L$$FFMPEG_POSTPROC -lpostproc \
                      -L$$FFMPEG_SWRESAMPLE -lswresample \
                      -L$$FFMPEG_SWSCALE -lswscale \
@@ -62,6 +62,7 @@ macx:contains(DEFINES, USE_BREW) {
     }
 
     win32:FFMPEG_LIBS += -lBcrypt
+    unix:FFMPEG_LIBS += -ldl
 
     INCLUDEPATH += $$FFMPEG_INCLUDES
     LIBS += $$FFMPEG_LIBS

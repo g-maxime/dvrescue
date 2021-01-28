@@ -50,12 +50,14 @@ contains(DEFINES, USE_BREW) {
     staticffmpeg = "CONFIG += static_ffmpeg"
     message('staticffmpeg: ' $$ffmpegLibs)
 
-    staticLibs = "CONFIG += staticlib"
-    unix:!mac:write_file($$QTAV/.qmake.conf, staticLibs, append)
+    noExamples = "CONFIG *= no-examples"
+    message('noExamples: ' $$noExamples)
+
 
     write_file($$QTAV/.qmake.conf, ffmpegIncludes, append)
     write_file($$QTAV/.qmake.conf, ffmpegLibs, append)
     write_file($$QTAV/.qmake.conf, staticffmpeg, append)
+    write_file($$QTAV/.qmake.conf, noExamples, append)
 
     # to fix building QtAV with the latest ffmpeg
     limitMacros = "DEFINES += __STDC_LIMIT_MACROS"
@@ -65,6 +67,9 @@ contains(DEFINES, USE_BREW) {
 linux: {
     fpic = "QMAKE_CXXFLAGS += -fPIC"
     write_file($$QTAV/.qmake.conf, fpic, append)
+
+    staticLibs = "CONFIG += static staticlib"
+    write_file($$QTAV/.qmake.conf, staticLibs, append)
 }
 
 mac: {
