@@ -118,6 +118,7 @@ mac: {
 
 message('QTAVLIBS: ' $$QTAVLIBS)
 LIBS += $$QTAVLIBS
+linux:LIBS += -lQtAVWidgets -lQmlAV
 
 
 message('// qtav.pri:' $$QMAKE_POST_LINK)

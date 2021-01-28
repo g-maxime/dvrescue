@@ -18,6 +18,10 @@ win32 {
     RC_ICONS = icons/icon.ico
 }
 
+linux {
+    DEFINES += STATIC
+}
+
 SOURCES += main.cpp
 
 # Additional import path used to resolve QML modules in Qt Creator's code model

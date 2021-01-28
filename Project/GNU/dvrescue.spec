@@ -45,6 +45,8 @@ BuildRequires:  libopenssl-devel
 Summary:	Convert DV tapes into digital files suitable for long-term preservation (GUI)
 Group:		Productivity/Multimedia/Other
 
+BuildRequires:  nasm
+BuildRequires:  libXv-devel
 %if 0%{?fedora_version} || 0%{?centos} >= 7
 BuildRequires:  pkgconfig(Qt5)
 BuildRequires:  pkgconfig(Qt5QuickControls2)
@@ -97,14 +99,14 @@ Data migration from DV tapes into digital files suitable for long-term preservat
 
 %prep
 %setup -q -n dvrescue
-%__chmod 644 *.txt *.md LICENSE.txt
+%__chmod 644 dvrescue/*.txt dvrescue/*.md dvrescue/LICENSE.txt
 
 %build
 export CFLAGS="-g $RPM_OPT_FLAGS"
 export CXXFLAGS="-g $RPM_OPT_FLAGS"
 
 # build CLI
-pushd Project/GNU/CLI
+pushd dvrescue/Project/GNU/CLI
 	%__chmod +x autogen
 	./autogen
 	%if 0%{?mageia} >= 6
@@ -118,32 +120,37 @@ popd
 
 # now build GUI
 
-pushd Source/GUI/dvrescue
+pushd ffmpeg
+	./configure --enable-gpl --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-pic --enable-static --enable-lto --disable-shared --prefix=`pwd`
+	%__make %{?jobs:-j%{jobs}} install
+popd
+mkdir -p dvrescue/Source/GUI/dvrescue/build
+pushd dvrescue/Source/GUI/dvrescue/build
 	export USE_SYSTEM=true
-	qmake-qt5 -recursive
+	qmake-qt5 ..
 	%__make %{?jobs:-j%{jobs}}
 popd
 
 
 %install
-pushd Project/GNU/CLI
+pushd dvrescue/Project/GNU/CLI
 	%__make install DESTDIR=%{buildroot}
 popd
 
-pushd Source/GUI/dvrescue
+pushd dvrescue/Source/GUI/dvrescue/build
 	%__install -D -m 755 dvrescue/dvrescue %{buildroot}%{_bindir}/dvrescue-gui
 popd
-%__install -D -m 644 Source/Resource/Image/Icon.png %{buildroot}%{_datadir}/pixmaps/dvrescue.png
-%__install -D -m 644 Project/GNU/GUI/dvrescue-gui.desktop %{buildroot}/%{_datadir}/applications/dvrescue-gui.desktop
-%__install -D -m 644 Project/GNU/GUI/dvrescue-gui.metainfo.xml %{buildroot}%{_datadir}/metainfo/dvrrescue-gui.metainfo.xml
+%__install -D -m 644 dvrescue/Source/GUI/dvrescue/dvrescue/icons/icon.png %{buildroot}%{_datadir}/pixmaps/dvrescue.png
+%__install -D -m 644 dvrescue/Project/GNU/GUI/dvrescue-gui.desktop %{buildroot}/%{_datadir}/applications/dvrescue-gui.desktop
+%__install -D -m 644 dvrescue/Project/GNU/GUI/dvrescue-gui.metainfo.xml %{buildroot}%{_datadir}/metainfo/dvrrescue-gui.metainfo.xml
 
 %clean
 [ -d "%{buildroot}" -a "%{buildroot}" != "" ] && %__rm -rf "%{buildroot}"
 
 %files
 %defattr(-,root,root,-)
-%doc LICENSE.txt
-%doc History.txt
+%doc dvrescue/LICENSE.txt
+%doc dvrescue/History.txt
 %{_bindir}/dvrescue
 %{_bindir}/dvloupe
 %{_bindir}/dvmap
@@ -153,8 +160,8 @@ popd
 
 %files gui
 %defattr(-,root,root,-)
-%doc LICENSE.txt
-%doc History.txt
+%doc dvrescue/LICENSE.txt
+%doc dvrescue/History.txt
 %{_bindir}/dvrescue-gui
 %{_datadir}/pixmaps/*.png
 %{_datadir}/applications/*.desktop

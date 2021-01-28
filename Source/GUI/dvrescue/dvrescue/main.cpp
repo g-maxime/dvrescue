@@ -13,6 +13,10 @@
 #include <QQuickStyle>
 #include <QtAV>
 
+#ifdef STATIC
+    Q_IMPORT_PLUGIN(QtAVQmlPlugin);
+#endif
+
 int main(int argc, char *argv[])
 {
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
