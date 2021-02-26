@@ -13,7 +13,7 @@ configure-stamp:
 	cd dvrescue/Project/GNU/CLI && ./autogen
 	cd dvrescue/Project/GNU/CLI && ./configure --prefix=/usr
 
-	cd ffmpeg && ./configure --enable-gpl --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-pic --enable-static --disable-shared --prefix=`pwd`
+	cd ffmpeg && ./configure --enable-gpl --disable-autodetect --enable-alsa --disable-doc --disable-programs --disable-debug --enable-pic --enable-static --disable-shared --prefix=`pwd`
 	cd ffmpeg && $(MAKE) install
 	mkdir -p dvrescue/Source/GUI/dvrescue/build
 	cd dvrescue/Source/GUI/dvrescue/build && qmake .. BINDIR=/usr/bin
