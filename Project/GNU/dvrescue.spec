@@ -53,6 +53,7 @@ BuildRequires:  pkgconfig(Qt5QuickControls2)
 BuildRequires:  pkgconfig(Qt5Svg)
 BuildRequires:  pkgconfig(Qt5XmlPatterns)
 BuildRequires:  pkgconfig(Qt5Qwt6)
+BuildRequires:  pkgconfig(alsa)
 %endif
 
 %if 0%{?mageia}
@@ -121,7 +122,7 @@ popd
 # now build GUI
 
 pushd ffmpeg
-	./configure --enable-gpl --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-pic --enable-static --enable-lto --disable-shared --prefix=`pwd`
+	./configure --enable-gpl --disable-autodetect --enable-alsa --disable-doc --disable-programs --disable-debug --enable-pic --enable-static --enable-lto --disable-shared --prefix=`pwd`
 	%__make %{?jobs:-j%{jobs}} install
 popd
 mkdir -p dvrescue/Source/GUI/dvrescue/build
