@@ -29,6 +29,12 @@ BuildRequires:	libzen-devel >= %libzen_version
 BuildRequires:	zlib-devel
 Requires:		xmlstarlet
 
+%if 0%{?fedora_version} >= 33
+%global build_gui 1
+%else
+%global build_gui 0
+%endif
+
 %if 0%{?rhel_version} >= 800 || 0%{?centos_version} >= 800
 BuildRequires:  gdb
 %endif
@@ -41,6 +47,7 @@ BuildRequires:  libopenssl-devel
 %endif
 %endif
 
+%if 0%{?build_gui}
 %package gui
 Summary:	Convert DV tapes into digital files suitable for long-term preservation (GUI)
 Group:		Productivity/Multimedia/Other
@@ -91,12 +98,15 @@ BuildRequires:  libqt5-qtxmlpatterns-devel
 BuildRequires:  libQt5QuickControls2-devel
 BuildRequires:  qwt6-devel
 %endif
+%endif
 
 %description
 Data migration from DV tapes into digital files suitable for long-term preservation
 
+%if 0%{?build_gui}
 %description gui
 Data migration from DV tapes into digital files suitable for long-term preservation (Graphical User Interface)
+%endif
 
 %prep
 %setup -q -n dvrescue
@@ -120,7 +130,7 @@ pushd dvrescue/Project/GNU/CLI
 popd
 
 # now build GUI
-
+%if 0%{?build_gui}
 pushd ffmpeg
 	./configure --enable-gpl --disable-autodetect --enable-alsa --disable-doc --disable-programs --disable-debug --enable-pic --enable-static --enable-lto --disable-shared --prefix=`pwd`
 	%__make %{?jobs:-j%{jobs}} install
@@ -131,19 +141,21 @@ pushd dvrescue/Source/GUI/dvrescue/build
 	qmake-qt5 ..
 	%__make %{?jobs:-j%{jobs}}
 popd
-
+%endif
 
 %install
 pushd dvrescue/Project/GNU/CLI
 	%__make install DESTDIR=%{buildroot}
 popd
 
+%if 0%{?build_gui}
 pushd dvrescue/Source/GUI/dvrescue/build
 	%__install -D -m 755 dvrescue/dvrescue %{buildroot}%{_bindir}/dvrescue-gui
 popd
 %__install -D -m 644 dvrescue/Source/GUI/dvrescue/dvrescue/icons/icon.png %{buildroot}%{_datadir}/pixmaps/dvrescue.png
 %__install -D -m 644 dvrescue/Project/GNU/GUI/dvrescue-gui.desktop %{buildroot}/%{_datadir}/applications/dvrescue-gui.desktop
 %__install -D -m 644 dvrescue/Project/GNU/GUI/dvrescue-gui.metainfo.xml %{buildroot}%{_datadir}/metainfo/dvrrescue-gui.metainfo.xml
+%endif
 
 %clean
 [ -d "%{buildroot}" -a "%{buildroot}" != "" ] && %__rm -rf "%{buildroot}"
@@ -159,6 +171,7 @@ popd
 %{_bindir}/dvplay
 %{_bindir}/dvsampler
 
+%if 0%{?build_gui}
 %files gui
 %defattr(-,root,root,-)
 %doc dvrescue/LICENSE.txt
@@ -167,6 +180,7 @@ popd
 %{_datadir}/pixmaps/*.png
 %{_datadir}/applications/*.desktop
 %{_datadir}/metainfo/*.xml
+%endif
 
 %changelog
 * Tue Jan 01 2019 Jerome Martinez <Info@MediaArea.net> - 0.20.11-0
