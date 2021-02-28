@@ -1,4 +1,4 @@
-QT += qml quick widgets quickcontrols2
+QT += qml quick widgets quickcontrols2 svg
 macx {
     QT+= concurrent
 }
