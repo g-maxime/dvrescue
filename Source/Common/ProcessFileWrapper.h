@@ -13,6 +13,15 @@
 class file;
 
 //***************************************************************************
+// Enums
+//***************************************************************************
+
+enum playback_mode {
+    Playback_Mode_NotPlaying = 0,
+    Playback_Mode_Playing
+};
+
+//***************************************************************************
 // Class FileWrapper
 //***************************************************************************
 
@@ -24,3 +33,21 @@ public:
  private:
     file* File;
 };
+
+//***************************************************************************
+// Class BaseWrapper
+//***************************************************************************
+
+class BaseWrapper {
+public:
+    // Constructor/Destructor
+    virtual ~BaseWrapper() = 0;
+
+    // Functions
+    virtual void CreateCaptureSession(FileWrapper* Wrapper) = 0;
+    virtual void StartCaptureSession() = 0;
+    virtual void StopCaptureSession() = 0;
+    virtual void SetPlaybackMode(playback_mode Mode, float Speed) = 0;
+    virtual void WaitForSessionEnd() = 0;
+};
+inline BaseWrapper::~BaseWrapper() {}

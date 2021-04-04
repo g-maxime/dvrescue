@@ -7,25 +7,24 @@
 //---------------------------------------------------------------------------
 #pragma once
 
-#include <cstddef> //for std::size_t, native size_t isn't avaiable in obj-c++ mode
+#include "ZenLib/Ztring.h"
 #include <string>
 
 #include "Common/ProcessFileWrapper.h"
 
 //***************************************************************************
-// Class AVFCtlWrapper
+// Class SimulatorWrapper
 //***************************************************************************
 
-class AVFCtlWrapper : public BaseWrapper {
-public:
+class SimulatorWrapper : public BaseWrapper {
+ public:
     // Constructor/Destructor
-    AVFCtlWrapper(std::size_t DeviceIndex);
-    ~AVFCtlWrapper();
+    SimulatorWrapper(const ZenLib::Ztring& FileName);
+    ~SimulatorWrapper();
 
     // Functions
     static std::size_t GetDeviceCount();
     static std::string GetDeviceName(std::size_t DeviceIndex);
-    std::string GetStatus();
     void CreateCaptureSession(FileWrapper* Wrapper);
     void StartCaptureSession();
     void StopCaptureSession();

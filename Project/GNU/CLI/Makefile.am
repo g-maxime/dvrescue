@@ -13,6 +13,8 @@ dvrescue_SOURCES = \
     ../../../Source/Common/Output_Xml.cpp \
     ../../../Source/Common/Output_Webvtt.cpp \
     ../../../Source/Common/ProcessFile.cpp \
+    ../../../Source/Common/ProcessFileWrapper.cpp \
+    ../../../Source/Common/SimulatorWrapper.cpp \
     ../../../Source/ThirdParty/ccdecoder/ccdecoder_internal.c \
     ../../../Source/ThirdParty/ccdecoder/ccdecoder_line21.c \
     ../../../Source/ThirdParty/ccdecoder/ccdecoder_line21field.c \

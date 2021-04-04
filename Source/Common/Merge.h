@@ -8,6 +8,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include "TimeCode.h"
 using namespace std;
 //---------------------------------------------------------------------------
 
@@ -28,7 +29,10 @@ struct MediaInfo_Event_Global_Demux_4;
 class dv_merge
 {
 public:
-    void AddFrame(size_t Merge_FilePos, const MediaInfo_Event_DvDif_Analysis_Frame_1* FrameData);
-    void AddFrame(size_t Merge_FilePos, const MediaInfo_Event_Global_Demux_4* FrameData);
+    void AddFrameAnalysis(size_t Merge_FilePos, const MediaInfo_Event_DvDif_Analysis_Frame_1* FrameData);
+    void AddFrameData(size_t Merge_FilePos, const uint8_t* Buffer, size_t Buffer_Size);
     void Finish();
+
+    TimeCode TC;
+    bool SwitchToFile0 = false;
 };
