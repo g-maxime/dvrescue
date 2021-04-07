@@ -81,5 +81,6 @@
         <file>PackagePage.qml</file>
         <file>PackageFileView.qml</file>
         <file>DvPackagerCtl.qml</file>
+        <file>PathResolver.qml</file>
     </qresource>
 </RCC>
