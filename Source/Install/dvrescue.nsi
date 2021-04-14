@@ -5,7 +5,7 @@ RequestExecutionLevel admin
 ; Some defines
 !define PRODUCT_NAME "dvrescue"
 !define PRODUCT_PUBLISHER "MediaArea.net"
-!define PRODUCT_VERSION "21.01.0"
+!define PRODUCT_VERSION "0.20.11"
 !define PRODUCT_VERSION4 "${PRODUCT_VERSION}.0"
 !define PRODUCT_WEB_SITE "https://www.mipops.org/dvrescue"
 !define COMPANY_REGISTRY "Software\MediaArea.net"
@@ -23,8 +23,14 @@ SetCompressor /FINAL /SOLID lzma
 ; x64 stuff
 !include "x64.nsh"
 
+; VC runtime
+!include "vcruntime.nsh"
+
 ; Qt dependencies
 !include "qt.nsh"
+
+; Cygwin
+!include "cygwin.nsh"
 
 ; File size
 !include FileFunc.nsh
@@ -89,10 +95,22 @@ Section "SectionPrincipale" SEC01
   File "..\..\Source\GUI\dvrescue\build\dvrescue\release\qwt.dll"
   File "..\..\History.txt"
   File "..\..\LICENSE.txt"
-  File "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.28.29910\X64\Microsoft.VC142.CRT\concrt140.dll"
-  File "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.28.29910\X64\Microsoft.VC142.CRT\msvcp140.dll"
-  File "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.28.29910\X64\Microsoft.VC142.CRT\vccorlib140.dll"
-  File "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Redist\MSVC\14.28.29910\X64\Microsoft.VC142.CRT\vcruntime140.dll"
+
+  SetOutPath "$INSTDIR\tools"
+  File "..\..\tools\dvgraph"
+  File "..\..\tools\dvloupe"
+  File "..\..\tools\dvmap"
+  File "..\..\tools\dvpackager"
+  File "..\..\tools\dvplay"
+  File "..\..\tools\dvrescue.xsd"
+  File "..\..\tools\dvrescue2csv"
+  File "..\..\tools\dvsampler"
+
+  SetOutPath "$INSTDIR\scripts"
+  File "..\..\Source\GUI\dvrescue\dvrescue\windows-tools\scripts\dvrescue.sh"
+  File "..\..\Source\GUI\dvrescue\dvrescue\windows-tools\scripts\ffmpeg.sh"
+  File "..\..\Source\GUI\dvrescue\dvrescue\windows-tools\scripts\mediainfo.sh"
+  File "..\..\Source\GUI\dvrescue\dvrescue\windows-tools\scripts\xml.sh"
 
   SetOutPath "$INSTDIR\QtAV"
   File "..\..\Source\GUI\dvrescue\build\dvrescue\release\QtAV\plugins.qmltypes"
@@ -100,6 +118,8 @@ Section "SectionPrincipale" SEC01
   File "..\..\Source\GUI\dvrescue\build\dvrescue\release\QtAV\qmldir"
   File "..\..\Source\GUI\dvrescue\build\dvrescue\release\QtAV\Video.qml"
 
+  !insertmacro Install_VC_Runtime
+  !insertmacro Install_Cygwin_Files
   !insertmacro Install_Qt_Files
 
   # Create files
@@ -134,17 +154,28 @@ Section Uninstall
   Delete "$INSTDIR\qwt.dll"
   Delete "$INSTDIR\History.txt"
   Delete "$INSTDIR\LICENSE.txt"
-  Delete "$INSTDIR\concrt140.dll"
-  Delete "$INSTDIR\msvcp140.dll"
-  Delete "$INSTDIR\vccorlib140.dll"
-  Delete "$INSTDIR\vcruntime140.dll"
   Delete "$INSTDIR\QtAV\plugins.qmltypes"
   Delete "$INSTDIR\QtAV\QmlAV.dll"
   Delete "$INSTDIR\QtAV\qmldir"
   Delete "$INSTDIR\QtAV\Video.qml"
-
+  RMDir  "$INSTDIR\QtAV"
+  Delete "$INSTDIR\tools\dvgraph"
+  Delete "$INSTDIR\tools\dvloupe"
+  Delete "$INSTDIR\tools\dvmap"
+  Delete "$INSTDIR\tools\dvpackager"
+  Delete "$INSTDIR\tools\dvplay"
+  Delete "$INSTDIR\tools\dvrescue.xsd"
+  Delete "$INSTDIR\tools\dvrescue2csv"
+  Delete "$INSTDIR\tools\dvsampler"
+  RMDir  "$INSTDIR\tools"
+  Delete "$INSTDIR\scripts\dvrescue.sh"
+  Delete "$INSTDIR\scripts\ffmpeg.sh"
+  Delete "$INSTDIR\scripts\mediainfo.sh"
+  Delete "$INSTDIR\scripts\xml.sh"
+  RMDir  "$INSTDIR\scripts"
+  !insertmacro Uninstall_VC_Runtime
   !insertmacro Uninstall_Qt_Files
-
+  !insertmacro Uninstall_Cygwin_Files
   RMDir  "$INSTDIR"
   Delete "$SMPROGRAMS\dvrescue.lnk"
 
