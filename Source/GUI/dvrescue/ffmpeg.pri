@@ -34,9 +34,9 @@ macx:!isEmpty(USE_BREW):equals(USE_BREW, true) {
 
         FFMPEG_LIBS += -L$$absolute_path($$FFMPEG/lib) \
                         -lavdevice \
-                        -lavcodec \
                         -lavfilter \
                         -lavformat \
+                        -lavcodec \
                         -lpostproc \
                         -lswresample \
                         -lswscale \
@@ -54,15 +54,18 @@ macx:!isEmpty(USE_BREW):equals(USE_BREW, true) {
 
         FFMPEG_LIBS += \
                      -L$$FFMPEG_AVDEVICE -lavdevice \
-                     -L$$FFMPEG_AVCODEC -lavcodec \
                      -L$$FFMPEG_AVFILTER -lavfilter \
                      -L$$FFMPEG_AVFORMAT -lavformat \
+                     -L$$FFMPEG_AVCODEC -lavcodec \
                      -L$$FFMPEG_POSTPROC -lpostproc \
                      -L$$FFMPEG_SWRESAMPLE -lswresample \
                      -L$$FFMPEG_SWSCALE -lswscale \
                      -L$$FFMPEG_AVUTIL -lavutil
 
     }
+
+    win32:FFMPEG_LIBS += -lBcrypt -lWs2_32
+    unix:!macx:FFMPEG_LIBS += -lasound -ldl
 
     INCLUDEPATH += $$FFMPEG_INCLUDES
     LIBS += $$FFMPEG_LIBS

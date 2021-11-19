@@ -25,11 +25,16 @@ contains(DEFINES, USE_BREW) {
     message('linkPkgConfig: ' $$linkPkgConfig)
 }
 
+unix:!macx: {
+    linkStatic = "CONFIG += static staticlib"
+    message('linkStatic: ' $$linkStatic)
+
+    write_file($$QTAVPLAYER/.qmake.conf, linkStatic, append)
+}
+
 SUBDIRS += \
 	dvrescue \
-        dvrescue_tests \
-        dvrescue_qmltests
 
 dvrescue.subdir = dvrescue
-dvrescue_tests.subdir = dvrescue.tests
-dvrescue_qmltests.subdir = dvrescue.qmltests
+
+dvrescue.depends = dvrescue-qtavplayer
