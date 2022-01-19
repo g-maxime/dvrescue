@@ -64,7 +64,7 @@ macx:!isEmpty(USE_BREW):equals(USE_BREW, true) {
 
     }
 
-    win32:FFMPEG_LIBS += -lBcrypt -lWs2_32
+    win32:FFMPEG_LIBS += -lStrmiids -lGdi32 -lUser32 -lShlwapi -lVfw32 -lOleAut32 -lOle32 -lBcrypt -lWs2_32
     unix:!macx:FFMPEG_LIBS += -lasound -ldl
 
     INCLUDEPATH += $$FFMPEG_INCLUDES
