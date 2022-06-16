@@ -19,12 +19,13 @@
 class SimulatorWrapper : public BaseWrapper {
  public:
     // Constructor/Destructor
-    SimulatorWrapper(const ZenLib::Ztring& FileName);
+    SimulatorWrapper(std::size_t DeviceIndex);
     ~SimulatorWrapper();
 
     // Functions
     static std::size_t GetDeviceCount();
     static std::string GetDeviceName(std::size_t DeviceIndex);
+    std::string GetStatus();
     void CreateCaptureSession(FileWrapper* Wrapper);
     void StartCaptureSession();
     void StopCaptureSession();

@@ -39,8 +39,7 @@ bin_SCRIPTS = \
 if BUILD_AVFCTL
     dvrescue_SOURCES += \
         ../../../Source/Common/AvfCtl.m \
-        ../../../Source/Common/AvfCtlWrapper.mm \
-        ../../../Source/Common/ProcessFileWrapper.cpp
+        ../../../Source/Common/AvfCtlWrapper.mm
     dvrescue_LDFLAGS = -framework IOKit -framework Foundation -framework AVFoundation -framework CoreMedia
 
     AVFCTL = ../../../tools/avfctl/avfctl

@@ -18,6 +18,9 @@
 #if defined(ENABLE_AVFCTL) || defined(ENABLE_SIMULATOR)
 FileWrapper* Wrapper = nullptr;
 #endif
+bool InControl = false;
+uint64_t Device_Pos = (uint64_t)-1;
+char Device_Command = 0;
 #include "ZenLib/Ztring.h"
 #include "Output.h"
 using namespace ZenLib;
@@ -70,20 +73,26 @@ void __stdcall Event_CallBackFunction(unsigned char* Data_Content, size_t Data_S
 //***************************************************************************
 
 #if defined(ENABLE_AVFCTL) || defined(ENABLE_SIMULATOR)
+void InputControl_Char(BaseWrapper* Controller, char C)
+{
+    switch (C)
+    {
+    case 'F': Controller->SetPlaybackMode(Playback_Mode_NotPlaying, 2.0); break;
+    case 'R': Controller->SetPlaybackMode(Playback_Mode_NotPlaying, -2.0); break;
+    case 'f': Controller->SetPlaybackMode(Playback_Mode_Playing, 1.0); break;
+    case 'q':
+    case 's': Controller->SetPlaybackMode(Playback_Mode_NotPlaying, 0); break;
+    case 'r': Controller->SetPlaybackMode(Playback_Mode_Playing, -1.0); break;
+    }
+}
 void InputControl (BaseWrapper* Controller)
 {
     for (;;)
     {
         auto C = getc(stdin);
-        switch (C)
-        {
-        case 'F': Controller->SetPlaybackMode(Playback_Mode_Playing, 10.0); break;
-        case 'R': Controller->SetPlaybackMode(Playback_Mode_Playing, -10.0); break;
-        case 'f': Controller->SetPlaybackMode(Playback_Mode_Playing, 1.0); break;
-        case 'q': Controller->SetPlaybackMode(Playback_Mode_NotPlaying, 0); return;
-        case 'r': Controller->SetPlaybackMode(Playback_Mode_Playing, -1.0); break;
-        case 's': Controller->SetPlaybackMode(Playback_Mode_Playing, 0); break;
-        }
+        InputControl_Char(Controller, C);
+        if (C == 'q')
+            return;
 
         this_thread::yield();
     }
@@ -114,36 +123,77 @@ void file::Parse(const String& FileName)
     if (Verbosity == 10)
         cerr << "Debug: opening (in) \"" << Ztring(FileName).To_Local() << "\"..." << endl;
     #if defined(ENABLE_AVFCTL) || defined(ENABLE_SIMULATOR)
+    if (Device_Command == 1)
+    {
+        size_t i = 0;
+        #ifdef ENABLE_SIMULATOR
+            for (;;)
+            {
+                auto Name = SimulatorWrapper::GetDeviceName(i);
+                if (Name.empty())
+                    break;
+                cout << Name << '\n';
+                i++;
+            }
+        #endif
+        #ifdef ENABLE_AVFCTL
+            for (;;)
+            {
+                auto Name = AVFCtlWrapper::GetDeviceName(i);
+                if (Name.empty())
+                    break;
+                cout << Name << '\n';
+                i++;
+            }
+        #endif
+        return;
+    }
     BaseWrapper* Controller = nullptr;
-    if (false)
+    if (Device_Pos == (size_t)-1 && FileName.rfind(__T("device://"), 0) == 0)
+        Device_Pos = (size_t)Ztring(FileName.substr(9)).To_int64u();
+    if (Device_Pos == (size_t)-1 && Device_Command)
+        Device_Pos = 0;
+    if (Device_Pos != (size_t)-1)
     {
+        if (false)
+            ;
+        #ifdef ENABLE_SIMULATOR
+            else if (Device_Pos < SimulatorWrapper::GetDeviceCount())
+                Controller = new SimulatorWrapper(Device_Pos);
+        #endif
+        #ifdef ENABLE_AVFCTL
+            else if (Device_Pos < AVFCtlWrapper::GetDeviceCount())
+                Controller = new AVFCtlWrapper(Device_Pos);
+        #endif
     }
-    #ifdef ENABLE_AVFCTL
-    else if (FileName.rfind(__T("device://"), 0)==0)
-    {
-        Ztring ZFileName(FileName);
-        size_t Device=(size_t)ZFileName.SubString(__T("device://"), __T("")).To_int64u();
-        if (Device<AVFCtlWrapper::GetDeviceCount())
-            Controller=new AVFCtlWrapper(Device);
-    }
-    #endif
-    #ifdef ENABLE_SIMULATOR
-    else if (FileName.rfind(__T("simulator://"), 0)==0)
-        Controller = new SimulatorWrapper(FileName.substr(12));
-    #endif
     if (Controller)
     {
-        int Flags = 0;
-        thread InputHelper(InputControl, Controller);
-        FileWrapper Wrapper(this);
-        MI.Open_Buffer_Init();
-        Controller->CreateCaptureSession(&Wrapper);
-        Controller->StartCaptureSession();
-        Controller->SetPlaybackMode(Playback_Mode_Playing, 1.0);
-        Controller->WaitForSessionEnd();
-        Controller->StopCaptureSession();
-        MI.Open_Buffer_Finalize();
-        InputHelper.join();
+        auto InputHelper = (InControl && !Device_Command) ? new thread(InputControl, Controller) : nullptr;
+        if (!Device_Command)
+        {
+            FileWrapper Wrapper(this);
+            MI.Open_Buffer_Init();
+            Controller->CreateCaptureSession(&Wrapper);
+            Controller->StartCaptureSession();
+            Controller->SetPlaybackMode(Playback_Mode_Playing, 1.0);
+            Controller->WaitForSessionEnd();
+            Controller->StopCaptureSession();
+            MI.Open_Buffer_Finalize();
+        }
+        else if (Device_Command >= 0x20)
+        {
+            InputControl_Char(Controller, Device_Command);
+        }
+        else if (Device_Command == 2)
+        {
+            cout << Controller->GetStatus() << '\n';
+            return;
+        }
+        if (InputHelper)
+        {
+            InputHelper->join();
+            delete InputHelper;
+        }
     }
     else
     #endif
@@ -196,7 +246,7 @@ file::~file()
 //---------------------------------------------------------------------------
 bool file::TransportControlsSupported()
 {
-#ifdef ENABLE_AVFCTL
+#if defined(ENABLE_AVFCTL) || defined(ENABLE_SIMULATOR)
     if (!Merge_InputFileNames[0].find("device://"))
         return true;
 #endif

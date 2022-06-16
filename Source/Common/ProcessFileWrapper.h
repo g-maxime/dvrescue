@@ -44,6 +44,7 @@ public:
     virtual ~BaseWrapper() = 0;
 
     // Functions
+    virtual std::string GetStatus() = 0;
     virtual void CreateCaptureSession(FileWrapper* Wrapper) = 0;
     virtual void StartCaptureSession() = 0;
     virtual void StopCaptureSession() = 0;

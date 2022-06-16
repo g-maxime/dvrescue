@@ -6,6 +6,7 @@
 
 #include "Common/SimulatorWrapper.h"
 #include "ZenLib/File.h"
+#include "ZenLib/ZtringListList.h"
 #include <chrono>
 #include <mutex>
 #include <thread>
@@ -17,21 +18,135 @@ using namespace ZenLib;
 //---------------------------------------------------------------------------
 struct ctl
 {
-    playback_mode               Mode = Playback_Mode_Playing;
-    float                       Speed = 1.0;
+    playback_mode               Mode = Playback_Mode_NotPlaying;
+    float                       Speed = 0;
 
+    // Current
     FileWrapper*                Wrapper = nullptr;
     bool                        IsCapturing = false;
     size_t                      F_Pos = 0;
     vector<File*>               F;
     mutex                       Mutex;
+
+    // I/O
+    size_t                      Io_Pos = (size_t)-1;
 };
 
 //---------------------------------------------------------------------------
-SimulatorWrapper::SimulatorWrapper(const ZenLib::Ztring& FileName)
+static std::string GetStatus(float Speed)
+{
+    string status;
+    if (Speed == 0.0f) {
+        status = "stopped";
+    }
+    else if (Speed == 1.0f) {
+        status = "playing";
+    }
+    else if (Speed > 1.0f) {
+        status = "fast-forwarding";
+    }
+    else if (Speed < 0.0f) {
+        status = "rewinding";
+    }
+    else {
+        status = "unknown";
+    }
+
+    return status;
+}
+
+//---------------------------------------------------------------------------
+static string to_string(float x)
+{
+    int64u p=0;
+    char* s = (char*)&p + 6; 
+    uint16_t decimals;
+    int units;
+    static int Divisor = 10; // 1 decimal
+    if (x < 0)
+    {
+        decimals = (int)(x * -Divisor + 0.5) % Divisor;
+        units = (int)(-1 * x);
+    }
+    else {
+        decimals = (int)(x * Divisor + 0.5) % Divisor;
+        units = (int)x;
+    }
+
+    *--s = (decimals % 10) + '0'; // 1 decimal
+    *--s = '.';
+
+    do
+    {
+        *--s = (units % 10) + '0';
+        units /= 10;
+    }
+    while (units > 0);
+
+    if (x < 0)
+        *--s = '-';
+    return string(s);
+}
+
+//---------------------------------------------------------------------------
+static Ztring MakeStatusFileName(size_t i)
+{
+    Ztring Result(__T("C:\\Temp\\dvrescue_simulator.status."));
+    Result += Ztring::ToZtring(i);
+    Result += __T(".txt");
+    return Result;
+}
+
+//---------------------------------------------------------------------------
+struct status_info
+{
+    playback_mode               Mode = Playback_Mode_NotPlaying;
+    float                       Speed = 0;
+};
+static bool MakeStatusInfo(status_info& StatusInfo, size_t i)
+{
+    File List_F;
+    if (List_F.Open(MakeStatusFileName(i), File::Access_Read))
+    {
+        int64u p = 0;
+        char* s = (char*)&p;
+        if (List_F.Read((int8u*)s, 8))
+        {
+            StatusInfo.Mode = s[0] == 'P' ? Playback_Mode_Playing : Playback_Mode_NotPlaying;
+            StatusInfo.Speed = (float)atof(s + 1);
+            return true;
+        }
+    }
+    return false;
+}
+//---------------------------------------------------------------------------
+static ZtringListList ReadFileNames()
+{
+    File List_F;
+    if (!List_F.Open(__T("C:\\Temp\\dvrescue_simulator.txt")))
+        return {};
+    int8u* List_C = new int8u[List_F.Size_Get()];
+    List_F.Read(List_C, List_F.Size_Get());
+    ZtringListList List;
+    List.Separator_Set(1, __T(","));
+    List.Write(Ztring().From_UTF8((char*)List_C, List_F.Size_Get()));
+    return List;
+}
+
+//---------------------------------------------------------------------------
+SimulatorWrapper::SimulatorWrapper(std::size_t DeviceIndex)
 {
     auto P = new ctl;
 
+    auto List = ReadFileNames();
+    if (DeviceIndex >= List.size() || List[DeviceIndex].empty())
+    {
+        Ctl = nullptr;
+        return;
+    }
+
+    P->Io_Pos = DeviceIndex;
+    auto const& FileName = List[DeviceIndex][0];
     if (File::Exists(FileName))
         P->F.push_back(new File(FileName));
     for (size_t i = 0;; i++)
@@ -46,6 +161,40 @@ SimulatorWrapper::SimulatorWrapper(const ZenLib::Ztring& FileName)
 }
 
 //---------------------------------------------------------------------------
+std::size_t SimulatorWrapper::GetDeviceCount()
+{
+    auto List = ReadFileNames();
+    return List.size();
+}
+
+//---------------------------------------------------------------------------
+std::string SimulatorWrapper::GetDeviceName(std::size_t DeviceIndex)
+{
+    auto List = ReadFileNames();
+    if (DeviceIndex >= List.size() || List[DeviceIndex].empty())
+        return {};
+    return List[DeviceIndex][0].To_UTF8();
+}
+
+//---------------------------------------------------------------------------
+std::string SimulatorWrapper::GetStatus()
+{
+    if (!Ctl)
+        return {};
+    auto P = (ctl*)Ctl;
+
+    if (!P->IsCapturing)
+    {
+        status_info StatusInfo;
+        if (MakeStatusInfo(StatusInfo, P->Io_Pos))
+            return ::GetStatus(StatusInfo.Speed);
+        return {};
+    }
+
+    return ::GetStatus(P->Speed);
+}
+
+//---------------------------------------------------------------------------
 void SimulatorWrapper::CreateCaptureSession(FileWrapper* Wrapper)
 {
     auto P = (ctl*)Ctl;
@@ -56,6 +205,8 @@ void SimulatorWrapper::CreateCaptureSession(FileWrapper* Wrapper)
 //---------------------------------------------------------------------------
 void SimulatorWrapper::StartCaptureSession()
 {
+    if (!Ctl)
+        return;
     auto P = (ctl*)Ctl;
 
     P->IsCapturing = true;
@@ -64,6 +215,8 @@ void SimulatorWrapper::StartCaptureSession()
 //---------------------------------------------------------------------------
 void SimulatorWrapper::StopCaptureSession()
 {
+    if (!Ctl)
+        return;
     auto P = (ctl*)Ctl;
 
     P->IsCapturing = false;
@@ -72,49 +225,78 @@ void SimulatorWrapper::StopCaptureSession()
 //---------------------------------------------------------------------------
 void SimulatorWrapper::WaitForSessionEnd()
 {
+    if (!Ctl)
+        return;
     auto P = (ctl*)Ctl;
+
+    // Check if should quit
+    if (P->F.empty() || !P->IsCapturing)
+        return;
 
     int8u* Buffer = new int8u[120000];
     for (;;)
     {
-        if (!P->IsCapturing || P->Mode == Playback_Mode_NotPlaying)
-            break;
-        if (!P->Speed)
+        P->Mutex.lock();
+
+        // I/O
+        status_info StatusInfo;
+        if (MakeStatusInfo(StatusInfo, P->Io_Pos) && StatusInfo.Mode != P->Mode && StatusInfo.Speed != P->Speed)
+        {
+            P->Mutex.unlock();
+            SetPlaybackMode(StatusInfo.Mode, StatusInfo.Speed);
+            P->Mutex.lock();
+        }
+
+        // Sleep
+        auto Mode = P->Mode;
+        auto Speed = P->Speed;
+        P->Mutex.unlock();
+        if (!Speed)
         {
             this_thread::yield();
             continue;
         }
-        this_thread::sleep_for(std::chrono::microseconds((int)(1000000.0/(30000.0/1.001)/abs(P->Speed))));
-
-        P->Mutex.lock();
+        this_thread::sleep_for(std::chrono::microseconds((int)(1000000.0/(30000.0/1.001)/abs(Speed))));
 
         // Read next data
+        P->Mutex.lock();
+        auto& F = P->F[P->F_Pos];
+        Mode = P->Mode;
         if (P->Speed < 0)
         {
-            if (P->F[P->F_Pos]->Position_Get() < 120000 * 2)
-                P->F[P->F_Pos]->GoTo(0, File::FromBegin);
-            else
-                P->F[P->F_Pos]->GoTo(-120000 * 2, File::FromCurrent);
+            auto Position = F->Position_Get();
+            if (Position < 120000 * 2)
+            {
+                F->GoTo(0, File::FromBegin);
+                P->Mode = Playback_Mode_NotPlaying;
+                P->Speed = 0;
+                P->Mutex.unlock();
+                continue;
+            }
+            F->GoTo(-120000 * 2, File::FromCurrent);
         }
-        auto BytesRead = P->F[P->F_Pos]->Read(Buffer, 120000);
-
+        auto BytesRead = F->Read(Buffer, 120000);
         P->Mutex.unlock();
 
         if (BytesRead != 120000)
             break;
-        P->Wrapper->Parse_Buffer(Buffer, 120000);
+        if (Mode == Playback_Mode_Playing)
+            P->Wrapper->Parse_Buffer(Buffer, 120000);
     }
 
+    SetPlaybackMode(Playback_Mode_NotPlaying, 0);
     delete[] Buffer;
 }
 
 //---------------------------------------------------------------------------
 void SimulatorWrapper::SetPlaybackMode(playback_mode Mode, float Speed)
 {
+    if (!Ctl)
+        return;
     auto P = (ctl*)Ctl;
 
     // No update if no mode/speed change
-    if (P->Mode == Mode && P->Speed == Speed)
+    if (P->F_Pos >= P->F.size() || (P->IsCapturing && P->Mode == Mode && P->Speed == Speed))
         return;
 
     P->Mutex.lock();
@@ -124,11 +306,26 @@ void SimulatorWrapper::SetPlaybackMode(playback_mode Mode, float Speed)
     P->Speed = Speed;
 
     // Switch to next file
-    auto SeekPos = P->F[P->F_Pos]->Position_Get();
-    P->F_Pos++;
-    if (P->F_Pos >= P->F.size())
-        P->F_Pos = 0;
-    P->F[P->F_Pos]->GoTo(SeekPos);
+    if (P->IsCapturing)
+    {
+        auto SeekPos = P->F[P->F_Pos]->Position_Get();
+        P->F_Pos++;
+        if (P->F_Pos >= P->F.size())
+            P->F_Pos = 0;
+        P->F[P->F_Pos]->GoTo(SeekPos);
+    }
+
+    // I/O
+    if (P->Io_Pos != (size_t)-1)
+    {
+        auto Status = (Mode == Playback_Mode_Playing ? 'P' : 'N' ) + ::to_string(P->Speed);
+        File List_F;
+        if (List_F.Open(MakeStatusFileName(P->Io_Pos), File::Access_Write))
+        {
+            List_F.Truncate();
+            List_F.Write((int8u*)Status.c_str(), Status.size());
+        }
+    }
 
     P->Mutex.unlock();
 }

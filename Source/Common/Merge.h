@@ -22,6 +22,9 @@ extern string MergeInfo_OutputFileName;
 extern uint8_t MergeInfo_Format;
 extern uint8_t Verbosity;
 extern uint8_t UseAbst;
+extern bool InControl;
+extern uint64_t Device_Pos;
+extern char Device_Command;
 struct MediaInfo_Event_DvDif_Analysis_Frame_1;
 struct MediaInfo_Event_Global_Demux_4;
 

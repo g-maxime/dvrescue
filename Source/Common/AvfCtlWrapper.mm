@@ -79,6 +79,11 @@ string AVFCtlWrapper::GetDeviceName(size_t DeviceIndex)
     return string([[AVFCtl getDeviceName:DeviceIndex] UTF8String]);
 }
 
+string AVFCtlWrapper::GetStatus()
+{
+    return string([[(id)Ctl getStatus] UTF8String]);
+}
+
 void AVFCtlWrapper::CreateCaptureSession(FileWrapper* Wrapper)
 {
     AVFCtlBufferReceiver *receiver = [[AVFCtlBufferReceiver alloc] initWithFileWrapper:Wrapper];
