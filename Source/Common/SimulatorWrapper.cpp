@@ -13,7 +13,14 @@
 #include <vector>
 
 using namespace std;
+using namespace std::chrono;
 using namespace ZenLib;
+
+#if defined _WIN32 || defined WIN32
+    #define SIM_PREFIX __T("C:\\Temp\\dvrescue_simulator.")
+#else
+    #define SIM_PREFIX __T("/tmp/dvrescue_simulator.")
+#endif
 
 //---------------------------------------------------------------------------
 struct ctl
@@ -27,6 +34,7 @@ struct ctl
     size_t                      F_Pos = 0;
     vector<File*>               F;
     mutex                       Mutex;
+    system_clock::time_point    Time_Previous_Frame;
 
     // I/O
     size_t                      Io_Pos = (size_t)-1;
@@ -91,7 +99,7 @@ static string to_string(float x)
 //---------------------------------------------------------------------------
 static Ztring MakeStatusFileName(size_t i)
 {
-    Ztring Result(__T("C:\\Temp\\dvrescue_simulator.status."));
+    Ztring Result(SIM_PREFIX __T("status."));
     Result += Ztring::ToZtring(i);
     Result += __T(".txt");
     return Result;
@@ -123,7 +131,7 @@ static bool MakeStatusInfo(status_info& StatusInfo, size_t i)
 static ZtringListList ReadFileNames()
 {
     File List_F;
-    if (!List_F.Open(__T("C:\\Temp\\dvrescue_simulator.txt")))
+    if (!List_F.Open(SIM_PREFIX __T("txt")))
         return {};
     int8u* List_C = new int8u[List_F.Size_Get()];
     List_F.Read(List_C, List_F.Size_Get());
@@ -173,7 +181,7 @@ std::string SimulatorWrapper::GetDeviceName(std::size_t DeviceIndex)
     auto List = ReadFileNames();
     if (DeviceIndex >= List.size() || List[DeviceIndex].empty())
         return {};
-    return List[DeviceIndex][0].To_UTF8();
+    return List[DeviceIndex][0].To_UTF8() + " (Simulator)";
 }
 
 //---------------------------------------------------------------------------
@@ -188,7 +196,7 @@ std::string SimulatorWrapper::GetStatus()
         status_info StatusInfo;
         if (MakeStatusInfo(StatusInfo, P->Io_Pos))
             return ::GetStatus(StatusInfo.Speed);
-        return {};
+        return ::GetStatus(0);
     }
 
     return ::GetStatus(P->Speed);
@@ -240,7 +248,7 @@ void SimulatorWrapper::WaitForSessionEnd()
 
         // I/O
         status_info StatusInfo;
-        if (MakeStatusInfo(StatusInfo, P->Io_Pos) && StatusInfo.Mode != P->Mode && StatusInfo.Speed != P->Speed)
+        if (MakeStatusInfo(StatusInfo, P->Io_Pos) && (StatusInfo.Mode != P->Mode || StatusInfo.Speed != P->Speed))
         {
             P->Mutex.unlock();
             SetPlaybackMode(StatusInfo.Mode, StatusInfo.Speed);
@@ -256,7 +264,17 @@ void SimulatorWrapper::WaitForSessionEnd()
             this_thread::yield();
             continue;
         }
-        this_thread::sleep_for(std::chrono::microseconds((int)(1000000.0/(30000.0/1.001)/abs(Speed))));
+        auto LastFrameTheoriticalDuration = std::chrono::microseconds((int)(1000000.0 / (30.0 / 1.001) / abs(Speed)));
+        auto Now = system_clock::now();
+        auto LastFrameDuration = duration_cast<std::chrono::microseconds>(Now - P->Time_Previous_Frame);
+        if (LastFrameTheoriticalDuration > LastFrameDuration)
+        {
+            auto Duration = LastFrameTheoriticalDuration - LastFrameDuration;
+            this_thread::sleep_for(Duration);
+            P->Time_Previous_Frame = system_clock::now();
+        }
+        else
+            P->Time_Previous_Frame = Now;
 
         // Read next data
         P->Mutex.lock();
@@ -304,6 +322,7 @@ void SimulatorWrapper::SetPlaybackMode(playback_mode Mode, float Speed)
     // Update
     P->Mode = Mode;
     P->Speed = Speed;
+    P->Time_Previous_Frame = system_clock::now();
 
     // Switch to next file
     if (P->IsCapturing)
@@ -333,5 +352,6 @@ void SimulatorWrapper::SetPlaybackMode(playback_mode Mode, float Speed)
 //---------------------------------------------------------------------------
 SimulatorWrapper::~SimulatorWrapper()
 {
-    delete Ctl;
+    auto P = (ctl*)Ctl;
+    delete P;
 }
