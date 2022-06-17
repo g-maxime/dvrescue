@@ -73,16 +73,18 @@ void __stdcall Event_CallBackFunction(unsigned char* Data_Content, size_t Data_S
 //***************************************************************************
 
 #if defined(ENABLE_AVFCTL) || defined(ENABLE_SIMULATOR)
+bool StopRequested = false;
 void InputControl_Char(BaseWrapper* Controller, char C)
 {
     switch (C)
     {
-    case 'F': Controller->SetPlaybackMode(Playback_Mode_NotPlaying, 2.0); break;
-    case 'R': Controller->SetPlaybackMode(Playback_Mode_NotPlaying, -2.0); break;
-    case 'f': Controller->SetPlaybackMode(Playback_Mode_Playing, 1.0); break;
-    case 'q':
-    case 's': Controller->SetPlaybackMode(Playback_Mode_NotPlaying, 0); break;
-    case 'r': Controller->SetPlaybackMode(Playback_Mode_Playing, -1.0); break;
+    case 'R': StopRequested = false; Controller->SetPlaybackMode(Playback_Mode_NotPlaying, -2.0); break;
+    case 'r': StopRequested = false; Controller->SetPlaybackMode(Playback_Mode_Playing   , -1.0); break;
+    case 'q': StopRequested = false; Controller->SetPlaybackMode(Playback_Mode_NotPlaying,  0.0); break;
+    case 's': StopRequested = true ; Controller->SetPlaybackMode(Playback_Mode_NotPlaying,  0.0); break;
+    case 'f': StopRequested = false; Controller->SetPlaybackMode(Playback_Mode_Playing   ,  1.0); break;
+    case 'F': StopRequested = false; Controller->SetPlaybackMode(Playback_Mode_NotPlaying,  2.0); break;
+    default: return;
     }
 }
 void InputControl (BaseWrapper* Controller)
@@ -171,13 +173,27 @@ void file::Parse(const String& FileName)
         auto InputHelper = (InControl && !Device_Command) ? new thread(InputControl, Controller) : nullptr;
         if (!Device_Command)
         {
+            cerr << "FileWrapper constructor" << endl;
             FileWrapper Wrapper(this);
             MI.Open_Buffer_Init();
+            cerr << "CreateCaptureSession" << endl;
             Controller->CreateCaptureSession(&Wrapper);
-            Controller->StartCaptureSession();
-            Controller->SetPlaybackMode(Playback_Mode_Playing, 1.0);
-            Controller->WaitForSessionEnd();
-            Controller->StopCaptureSession();
+            for (;;)
+            {
+                cerr << "StartCaptureSession" << endl;
+                Controller->StartCaptureSession();
+                cerr << "SetPlaybackMode" << endl;
+                Controller->SetPlaybackMode(Playback_Mode_Playing, 1.0);
+                cerr << "WaitForSessionEnd" << endl;
+                Controller->WaitForSessionEnd();
+                cerr << "StopCaptureSession" << endl;
+                Controller->StopCaptureSession();
+                if (!StopRequested)
+                    break;
+                while (StopRequested)
+                    this_thread::yield();
+            }
+            cerr << "Open_Buffer_Finalize" << endl;
             MI.Open_Buffer_Finalize();
         }
         else if (Device_Command >= 0x20)
@@ -186,6 +202,11 @@ void file::Parse(const String& FileName)
         }
         else if (Device_Command == 2)
         {
+            FileWrapper Wrapper(this);
+            cerr << "CreateCaptureSession" << endl;
+            this_thread::sleep_for(chrono::milliseconds(500)); // give time for the driver to retrieves status from the device
+            Controller->CreateCaptureSession(&Wrapper);
+            cerr << "GetStatus" << endl;
             cout << Controller->GetStatus() << '\n';
             return;
         }

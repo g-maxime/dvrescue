@@ -266,6 +266,8 @@ return_value Parse(Core &C, int argc, const char* argv_ansi[], const MediaInfoNa
                 Device_Command = 'f';
             else if (!strcmp(argv_ansi[i], "stop"))
                 Device_Command = 's';
+            else if (!strcmp(argv_ansi[i], "srew"))
+                Device_Command = 'r';
             else if (!strcmp(argv_ansi[i], "rew"))
                 Device_Command = 'R';
             else if (!strcmp(argv_ansi[i], "ff"))

@@ -196,7 +196,7 @@ std::string SimulatorWrapper::GetStatus()
         status_info StatusInfo;
         if (MakeStatusInfo(StatusInfo, P->Io_Pos))
             return ::GetStatus(StatusInfo.Speed);
-        return ::GetStatus(0);
+        return "unknown";
     }
 
     return ::GetStatus(P->Speed);
@@ -261,8 +261,9 @@ void SimulatorWrapper::WaitForSessionEnd()
         P->Mutex.unlock();
         if (!Speed)
         {
-            this_thread::yield();
-            continue;
+            //this_thread::yield();
+            //continue;
+            break;
         }
         auto LastFrameTheoriticalDuration = std::chrono::microseconds((int)(1000000.0 / (30.0 / 1.001) / abs(Speed)));
         auto Now = system_clock::now();
