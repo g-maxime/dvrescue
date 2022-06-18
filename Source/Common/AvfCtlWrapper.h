@@ -30,6 +30,8 @@ public:
     void StartCaptureSession();
     void StopCaptureSession();
     void SetPlaybackMode(playback_mode Mode, float Speed);
+    float GetSpeed();
+    playback_mode GetMode();
     void WaitForSessionEnd();
 
 private:

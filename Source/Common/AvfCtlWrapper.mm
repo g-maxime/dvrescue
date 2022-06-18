@@ -105,6 +105,16 @@ void AVFCtlWrapper::SetPlaybackMode(playback_mode Mode, float Speed)
     [(id)Ctl setPlaybackMode:(AVCaptureDeviceTransportControlsPlaybackMode)Mode speed:Speed];
 }
 
+float AVFCtlWrapper::GetSpeed()
+{
+    return (float)[(id)Ctl getSpeed];
+}
+
+playback_mode AVFCtlWrapper::GetMode()
+{
+    return (playback_mode)[(id)Ctl getMode];
+}
+
 void AVFCtlWrapper::WaitForSessionEnd()
 {
     [(id)Ctl waitForSessionEnd];
