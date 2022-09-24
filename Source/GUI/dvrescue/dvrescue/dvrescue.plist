@@ -16,8 +16,6 @@
 	<string>NSApplication</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Capture video from DV device</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Capture audio from DV device</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
 </dict>
