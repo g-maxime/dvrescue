@@ -23,6 +23,9 @@
 #include <QFileInfo>
 #include <imageutils.h>
 #include <loggingutils.h>
+#if defined(Q_OS_WIN)
+#include <QStandardPaths>
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -69,6 +72,11 @@ int main(int argc, char *argv[])
 
     paths.prepend(additionalPath);
     qputenv("PATH", paths.toUtf8());
+
+    // Set TMPDIR to a known writable place for cygwin's mktemp
+    auto tmpdir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    qputenv("TMPDIR", tmpdir.toUtf8());
+
 #elif defined(Q_OS_MAC)
     auto appDirPath = QCoreApplication::applicationDirPath();
     qDebug() << "appDirPath: " << appDirPath;
