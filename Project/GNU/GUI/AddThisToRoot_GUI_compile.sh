@@ -218,7 +218,7 @@ cd $Home
 if test -e ffmpeg/configure; then
  cd ffmpeg
  # fix ffmpeg configure for static freetype2
- sed -i'' 's/^enabled libfreetype.*//g' configure
+ sed -i '' 's/^enabled libfreetype.*//g' configure
  if [ "$OS" = "mac" ]; then
   ./configure --x86asmexe=$Home/yasm/bin/yasm --enable-gpl --extra-cflags="-mmacosx-version-min=10.10" --extra-ldflags="-mmacosx-version-min=10.10" --disable-securetransport --disable-videotoolbox --disable-autodetect --disable-doc --disable-debug --enable-pic --enable-shared --disable-static --prefix="$PWD" --enable-libfreetype --extra-cflags=-I../freetype/include --extra-libs=../freetype/output/lib/libfreetype.a
  else
