@@ -95,7 +95,6 @@ Section "SectionPrincipale" SEC01
   File "..\..\..\MediaInfo\Project\MSVC2019\CLI\x64\Release\mediainfo.exe"
   File "/oname=dvrescue-gui.exe" "..\..\Source\GUI\dvrescue\build\dvrescue\release\dvrescue.exe"
   File "..\..\Project\MSVC2017\CLI\x64\Release\dvrescue.exe"
-  File "..\..\Source\GUI\dvrescue\build\dvrescue\release\QtAVPlayer.dll"
   File "..\..\Source\GUI\dvrescue\build\dvrescue\release\qwt.dll"
   File "..\..\History.txt"
   File "..\..\LICENSE.txt"
@@ -170,6 +169,9 @@ Section Uninstall
   Delete "$INSTDIR\scripts\mediainfo.sh"
   Delete "$INSTDIR\scripts\xml.sh"
   RMDir  "$INSTDIR\scripts"
+
+  ; Old QtAVPlayer files
+  Delete "$INSTDIR\QtAVPlayer.dll"
 
   ; Old QtAV files
   Delete "$INSTDIR\QtAV1.dll"

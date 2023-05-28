@@ -32,9 +32,6 @@ unix:!macx: {
     write_file($$QTAVPLAYER/.qmake.conf, linkStatic, append)
 }
 
-SUBDIRS += \
-	dvrescue \
+SUBDIRS += dvrescue
 
 dvrescue.subdir = dvrescue
-
-dvrescue.depends = dvrescue-qtavplayer
