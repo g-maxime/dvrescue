@@ -338,11 +338,11 @@ cd $Home
 if test -e dvrescue/Source/GUI/dvrescue/dvrescue.pro; then
  mkdir dvrescue/Source/GUI/dvrescue/build
  cd dvrescue/Source/GUI/dvrescue/build
- Q_Make ..
+ Q_Make -after QMAKE_CXXFLAGS+=-gdwarf-2 ..
  if test -e Makefile; then
   Zen_Make
   if test -e dvrescue/dvrescue || test -e dvrescue/dvrescue.app; then
-    if [ "$OS" = "mac" ] && ! macdeployqt dvrescue/dvrescue.app -qmldir=../dvrescue ; then
+    if [ "$OS" = "mac" ] && ! macdeployqt dvrescue/dvrescue.app -qmldir=../dvrescue -no-strip; then
       echo Problem while bundling qt frameworks
       exit 1
      fi

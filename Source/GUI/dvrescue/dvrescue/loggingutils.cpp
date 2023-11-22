@@ -11,8 +11,8 @@ LoggingUtils::LoggingUtils(QObject *parent)
 
 QLoggingCategory::CategoryFilter filter;
 void LoggingUtils::categoryFilter(QLoggingCategory* category) {
-
-    if(QString::fromUtf8(category->categoryName()).startsWith("dvrescue")) {
+    const char* categoryName = category->categoryName() != nullptr ? category->categoryName() : "default";
+    if(QString::fromUtf8(categoryName).startsWith("dvrescue")) {
         category->setEnabled(QtDebugMsg, false);
         category->setEnabled(QtWarningMsg, false);
         category->setEnabled(QtCriticalMsg, false);
@@ -23,9 +23,9 @@ void LoggingUtils::categoryFilter(QLoggingCategory* category) {
         filter(category);
     }
 
-    if(categoryByName.find(category->categoryName()) == categoryByName.end()) {
+    if(categoryByName.find(categoryName) == categoryByName.end()) {
         categories.append(category);
-        categoryByName[category->categoryName()] = category;
+        categoryByName[categoryName] = category;
     }
 }
 
