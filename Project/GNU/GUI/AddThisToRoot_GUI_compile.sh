@@ -16,7 +16,7 @@ fi
 if [ "$OS" = "mac" ]; then
     export CFLAGS="-mmacosx-version-min=10.10 $CFLAGS"
     export CXXFLAGS="-mmacosx-version-min=10.10 $CXXFLAGS"
-    export LDFLAGS="-Wl,-ld_classic -mmacosx-version-min=10.10 $LDFLAGS"
+    export LDFLAGS="-mmacosx-version-min=10.10 $LDFLAGS"
 fi
 
 
