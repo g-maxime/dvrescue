@@ -260,12 +260,12 @@ return_value Output_Xml(ostream& Out, std::vector<file*>& PerFile, bitset<Option
         #ifdef ENABLE_DECKLINK
         else if (File->CaptureMode == Capture_Mode_DeckLink)
         {
-            if (!File->Controller)
+            if (!File->Capture)
             {
                 Text += " error=\"decklink initialization failed\"/>\n";
                 continue;
             }
-            else if (!((DecklinkWrapper*)File->Controller)->frames.frames.size())
+            else if (((DecklinkWrapper*)File->Capture)->frames.frames.empty())
             {
                 Text += " error=\"no frame received\"/>\n";
                 continue; // Show the file only if there is some content
@@ -306,6 +306,8 @@ return_value Output_Xml(ostream& Out, std::vector<file*>& PerFile, bitset<Option
         #ifdef ENABLE_DECKLINK
         if (File->CaptureMode == Capture_Mode_DeckLink)
         {
+            DecklinkWrapper* DeckLink=(DecklinkWrapper*)File->Capture;
+
             Text += "\t\t<source";
             auto Video = decklink_videosource_to_string(DeckLinkVideoSource);
             if (!Video.empty())
@@ -336,63 +338,79 @@ return_value Output_Xml(ostream& Out, std::vector<file*>& PerFile, bitset<Option
             Text += "\t\t<frames";
             {
                 Text += " count=\"";
-                Text += to_string(((DecklinkWrapper*)File->Controller)->frames.frames.size());
+                Text += to_string(DeckLink->frames.frames.size());
                 Text += '\"';
             }
-            if (((DecklinkWrapper*)File->Controller)->frames.video_width && ((DecklinkWrapper*)File->Controller)->frames.video_height)
+            if (!DeckLink->frames.frames.empty())
+            {
+                    Text += " pts=\"";
+                    seconds_to_timestamp(Text, DeckLink->frames.frames[0].pts / 1000000000.0, 6, true);
+                    Text += '\"';
+
+                    Text += " end_pts=\"";
+                    seconds_to_timestamp(Text, (DeckLink->frames.frames[DeckLink->frames.frames.size()-1].pts / 1000000000.0) + DeckLink->frames.frames[DeckLink->frames.frames.size()-1].dur, 6, true);
+                    Text += '\"';
+            }
+            if (DeckLink->frames.video_width && DeckLink->frames.video_height)
             {
                 Text += " size=\"";
-                Text += to_string(((DecklinkWrapper*)File->Controller)->frames.video_width);
+                Text += to_string(DeckLink->frames.video_width);
                 Text += 'x';
-                Text += to_string(((DecklinkWrapper*)File->Controller)->frames.video_height);
+                Text += to_string(DeckLink->frames.video_height);
                 Text += '\"';
             }
-            if (((DecklinkWrapper*)File->Controller)->frames.video_rate_num)
+            if (DeckLink->frames.video_rate_num)
             {
                 Text += " video_rate=\"";
-                Text += to_string(((DecklinkWrapper*)File->Controller)->frames.video_rate_num);
-                if (((DecklinkWrapper*)File->Controller)->frames.video_rate_den && ((DecklinkWrapper*)File->Controller)->frames.video_rate_den != 1)
+                Text += to_string(DeckLink->frames.video_rate_num);
+                if (DeckLink->frames.video_rate_den && DeckLink->frames.video_rate_den != 1)
                 {
                     Text += '/';
-                    Text += to_string(((DecklinkWrapper*)File->Controller)->frames.video_rate_den);
+                    Text += to_string(DeckLink->frames.video_rate_den);
                 }
                 Text += '\"';
             }
-            if (((DecklinkWrapper*)File->Controller)->frames.audio_rate)
+            if (DeckLink->frames.audio_rate)
             {
                 Text += " audio_rate=\"";
-                Text += to_string(((DecklinkWrapper*)File->Controller)->frames.audio_rate);
+                Text += to_string(DeckLink->frames.audio_rate);
                 Text += '\"';
             }
-            if (((DecklinkWrapper*)File->Controller)->frames.audio_channels)
+            if (DeckLink->frames.audio_channels)
             {
                 Text += " channels=\"";
-                Text += to_string(((DecklinkWrapper*)File->Controller)->frames.audio_channels);
+                Text += to_string(DeckLink->frames.audio_channels);
                 Text += '\"';
             }
             Text += ">\n";
 
             // frame
-            for (size_t pos=0; pos < ((DecklinkWrapper*)File->Controller)->frames.frames.size(); pos++)
+            for (size_t Pos=0; Pos < DeckLink->frames.frames.size(); Pos++)
             {
                 Text += "\t\t\t<frame";
                 {
                     Text += " n=\"";
-                    Text += to_string(pos);
+                    Text += to_string(Pos);
                     Text += '\"';
                 }
-                if (((DecklinkWrapper*)File->Controller)->frames.frames[pos].tc.is_valid())
                 {
-                    uint64_t tc_in_seconds = (((DecklinkWrapper*)File->Controller)->frames.frames[pos].tc.hours * 3600)
-                                           + (((DecklinkWrapper*)File->Controller)->frames.frames[pos].tc.minutes * 60)
-                                           + (((DecklinkWrapper*)File->Controller)->frames.frames[pos].tc.seconds);
-                    bool dropframe = ((DecklinkWrapper*)File->Controller)->frames.frames[pos].tc.dropframe;
-                    uint8_t frame = ((DecklinkWrapper*)File->Controller)->frames.frames[pos].tc.frames;
+                    Text += " pts=\"";
+                    seconds_to_timestamp(Text, DeckLink->frames.frames[Pos].pts / 1000000000.0, 6, true);
+                    Text += '\"';
+                }
+                if (DeckLink->frames.frames[Pos].tc.is_valid())
+                {
+                    uint64_t tc_in_seconds = (DeckLink->frames.frames[Pos].tc.hours * 3600)
+                                           + (DeckLink->frames.frames[Pos].tc.minutes * 60)
+                                           + (DeckLink->frames.frames[Pos].tc.seconds);
+                    bool dropframe = DeckLink->frames.frames[Pos].tc.dropframe;
+                    uint8_t frame = DeckLink->frames.frames[Pos].tc.frames;
 
                     Text += " tc=\"";
                     timecode_to_string(Text, tc_in_seconds, dropframe, frame);
                     Text += '\"';
                 }
+
                 Text += "/>\n";
             }
 

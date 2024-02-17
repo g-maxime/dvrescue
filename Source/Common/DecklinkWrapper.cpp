@@ -111,42 +111,35 @@ HRESULT DecklinkWrapper::CaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoI
         void* VideoBuffer;
         size_t VideoBufferSize = VideoFrame->GetRowBytes() * VideoFrame->GetHeight();
         if (VideoFrame->GetBytes(&VideoBuffer) != S_OK)
-        {
-            VideoFrame->Release();
-            AudioPacket->Release();
             return E_FAIL;
-        }
 
         void* AudioBuffer;
         size_t AudioBufferSize = AudioPacket->GetSampleFrameCount() * 2 * 32 / 8;
         if (AudioPacket->GetBytes(&AudioBuffer) != S_OK)
-        {
-            VideoFrame->Release();
-            AudioPacket->Release();
             return E_FAIL;
-        }
 
         timecode_struct Timecode;
         if (TimecodeFormat != (uint32_t)-1)
         {
             IDeckLinkTimecode*	DeckLinkTimecode;
             if (VideoFrame->GetTimecode(TimecodeFormat, &DeckLinkTimecode) == S_OK)
+            {
                 DeckLinkTimecode->GetComponents(&Timecode.hours, &Timecode.minutes, &Timecode.seconds, &Timecode.frames);
+                Timecode.dropframe = (DeckLinkTimecode->GetFlags() & bmdTimecodeIsDropFrame) != 0;
+            }
         }
 
         for (output& Writer : Writers)
             Writer.Writer->write_frame((const char*)VideoBuffer, VideoBufferSize, (const char*)AudioBuffer, AudioBufferSize, Timecode);
 
+        double FrameRate = (double)Wrapper->frames.video_rate_num / Wrapper->frames.video_rate_den;
+        double ElapsedTime = (double)Wrapper->frames.frames.size() / FrameRate;
         Wrapper->frames.frames.push_back(decklink_frames::frame {
-            .tc = Timecode
+            .tc = Timecode,
+            .pts = ElapsedTime * 1000000000.0,
+            .dur = 1.0 / FrameRate
         });
     }
-
-    if (VideoFrame)
-        VideoFrame->Release();
-
-    if (AudioPacket)
-        AudioPacket->Release();
 
     return S_OK;
 }
@@ -715,6 +708,7 @@ bool DecklinkWrapper::WaitForSessionEnd(uint64_t Timeout)
             if (difftime(time(NULL), LastInput) > Timeout)
                 return true;
         }
+        PlaybackMode = GetMode();
         this_thread::sleep_for(std::chrono::milliseconds(500));
     }
     while (PlaybackMode == Playback_Mode_Playing);

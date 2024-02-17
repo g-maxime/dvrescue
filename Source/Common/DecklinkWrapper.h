@@ -65,6 +65,8 @@ enum decklink_timecode_format {
 struct decklink_frames {
     struct frame {
         timecode_struct tc;
+        double pts;
+        double dur;
     };
 
     uint32_t video_width = 0;
