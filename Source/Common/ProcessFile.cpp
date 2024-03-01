@@ -41,7 +41,7 @@ FileWrapper* Wrapper = nullptr;
 #ifdef ENABLE_SONY9PIN
 const char* Control_Port = nullptr;
 #endif
-#ifdef ENABLE_DECKLINK
+#ifdef ENABLE_DECKLINK || defined(ENABLE_SIMULATOR)
 bool DeckLinkNativeControl = false;
 uint8_t DeckLinkVideoMode = (uint8_t)Decklink_Video_Mode_NTSC;
 uint8_t DeckLinkVideoSource = (uint8_t)Decklink_Video_Source_SDI;
