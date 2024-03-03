@@ -10,8 +10,14 @@
 #include <cstddef> //for std::size_t, native size_t isn't avaiable in obj-c++ mode
 #include <cstdint>
 #include <string>
+#include <vector>
+
+#include "ThirdParty/TimeCode/TimeCode.h"
 
 class file;
+#if defined(ENABLE_DECKLINK) || defined(ENABLE_SIMULATOR)
+class matroska_writer;
+#endif
 
 //***************************************************************************
 // Enums
@@ -23,16 +29,47 @@ enum playback_mode {
 };
 
 //***************************************************************************
+// Structures
+//***************************************************************************
+
+#if defined(ENABLE_DECKLINK) || defined(ENABLE_SIMULATOR)
+struct decklink_frame
+{
+    uint32_t                    Width = {};
+    uint32_t                    Height = {};
+    uint8_t*                    Video_Buffer = {};
+    size_t                      Video_Buffer_Size = {};
+    uint8_t*                    Audio_Buffer = {};
+    size_t                      Audio_Buffer_Size = {};
+    TimeCode                    TC = {};
+};
+
+struct matroska_output
+{
+    matroska_writer* Writer = nullptr;
+    std::ofstream* Output = nullptr;
+};
+#endif
+
+//***************************************************************************
 // Class FileWrapper
 //***************************************************************************
 
 class FileWrapper {
 public:
-    FileWrapper(file* File);
+    FileWrapper(file* File); // Constructor for DV/MediaInfo Interface
+    #if defined(ENABLE_DECKLINK) || defined(ENABLE_SIMULATOR)
+    FileWrapper(int Width, int Height, int Framerate_Num, int Framerate_Den, int SampleRate, int Channels, bool Has_Timecode = false); // Constructor for Decklink/Matroska Interface
+    ~FileWrapper();
+    #endif
     void Parse_Buffer(const uint8_t* Buffer, std::size_t Buffer_Size);
 
  private:
     file* File;
+    #if defined(ENABLE_DECKLINK) || defined(ENABLE_SIMULATOR)
+    bool IsMatroska = false;
+    std::vector<matroska_output> Outputs;
+    #endif
 };
 
 //***************************************************************************

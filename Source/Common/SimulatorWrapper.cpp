@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <thread>
 #include <vector>
+#include "SimulatorWrapper.h"
 
 using namespace std;
 using namespace std::chrono;
@@ -26,18 +27,6 @@ using namespace ZenLib;
 #endif
 
 //---------------------------------------------------------------------------
-struct decklink_simulator
-{
-    int32u                      Width = {};
-    int32u                      Height = {};
-    uint8_t*                    Video_Buffer = {};
-    size_t                      Video_Buffer_Size = {};
-    uint8_t*                    Audio_Buffer = {};
-    size_t                      Audio_Buffer_Size = {};
-    TimeCode                    TC = {};
-};
-
-//---------------------------------------------------------------------------
 struct ctl
 {
     playback_mode               Mode = Playback_Mode_NotPlaying;
@@ -46,6 +35,7 @@ struct ctl
     // Current
     FileWrapper*                Wrapper = nullptr;
     bool                        IsCapturing = false;
+    bool                        IsMatroska = false;
     size_t                      F_Pos = 0;
     vector<File*>               F;
     mutex                       Mutex;
@@ -63,7 +53,7 @@ struct ctl
 
     // MKV info
     size_t                      Track_Pos = 0;
-    decklink_simulator          Decklink_Sim;
+    decklink_frame              Decklink_Sim;
 
     // MKV parsing
     uint64_t                    Get_EB();
@@ -489,13 +479,13 @@ SimulatorWrapper::SimulatorWrapper(std::size_t DeviceIndex)
     {
         P->F.push_back(new File(FileName));
         auto DotPos = FileName.rfind(__T('.'));
-        bool IsMkv = DotPos != string::npos && FileName.substr(DotPos + 1) == __T("mkv");
-        if (IsMkv)
+        P->IsMatroska = DotPos != string::npos && FileName.substr(DotPos + 1) == __T("mkv");
+        if (P->IsMatroska)
             P->Buffer_Size = 16 * 1024 * 1024;
         else
             P->Buffer_Size = 120000;
         P->Buffer = new int8u[P->Buffer_Size];
-        if (IsMkv)
+        if (P->IsMatroska)
         {
             P->F.back()->Read(P->Buffer, P->Buffer_Size);
             P->ParseBuffer_Init(*P->F.back());
@@ -763,12 +753,22 @@ bool SimulatorWrapper::WaitForSessionEnd(uint64_t Timeout)
                 delete[] Buffer2;
             }
         }
+        P->Mutex.unlock();
     }
 
     SetPlaybackMode(Playback_Mode_NotPlaying, 0);
     delete[] P->Buffer;
 
     return false;
+}
+
+//---------------------------------------------------------------------------
+bool SimulatorWrapper::IsMatroska()
+{
+    if (!Ctl)
+        return false;
+
+    return ((ctl*)Ctl)->IsMatroska;
 }
 
 //---------------------------------------------------------------------------

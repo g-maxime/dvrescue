@@ -6,6 +6,7 @@
 
 //---------------------------------------------------------------------------
 #include "Common/DecklinkWrapper.h"
+#include "Common/ProccessFile.h"
 #include "Common/Merge.h"
 
 #include <DeckLinkAPIDispatch.cpp>

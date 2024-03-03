@@ -7,19 +7,78 @@
 #include "Common/ProcessFileWrapper.h"
 #include "Common/ProcessFile.h"
 
+#if defined(ENABLE_DECKLINK) || defined(ENABLE_SIMULATOR)
+#include "Common/Output_Mkv.h"
+#include "Common/Merge.h"
+
+#include <iostream>
+#endif
+
 using namespace std;
 
+//---------------------------------------------------------------------------
 FileWrapper::FileWrapper(file* File) : File(File)
 {
 }
 
-void FileWrapper::Parse_Buffer(const uint8_t* Buffer, size_t Buffer_Size)
+//---------------------------------------------------------------------------
+#if defined(ENABLE_DECKLINK) || defined(ENABLE_SIMULATOR)
+FileWrapper::FileWrapper(int Width, int Height, int Framerate_Num, int Framerate_Den, int SampleRate, int Channels, bool Has_Timecode) : File(nullptr)
 {
-    if (Buffer_Size < 120000)
+    IsMatroska = true;
+    for (string OutputFile : Merge_OutputFileNames)
     {
-        // Decklink simulator, Buffer is a decklink_simulator object
+        matroska_output Output;
+        if (OutputFile == "-")
+          Output.Writer = new matroska_writer(&cout, Width, Height, Framerate_Num, Framerate_Den, Has_Timecode);
+        else
+        {
+            Output.Output = new ofstream(OutputFile, ios_base::binary | ios_base::trunc);
+            Output.Writer = new matroska_writer(Output.Output, Width, Height, Framerate_Num, Framerate_Den, Has_Timecode);
+        }
+        Outputs.push_back(Output);
+    }
+}
+
+//---------------------------------------------------------------------------
+FileWrapper::~FileWrapper()
+{
+    if (IsMatroska)
+    {
+        for (matroska_output Output: Outputs)
+        {
+            if (Output.Writer)
+            {
+                Output.Writer->close(Output.Output);
+                delete Output.Writer;
+            }
+
+            if (Output.Output)
+            {
+                Output.Output->close();
+                delete Output.Output;
+            }
+        }
+        Outputs.clear();
+    }
+}
+#endif
+
+//---------------------------------------------------------------------------
+void FileWrapper::Parse_Buffer(const uint8_t *Buffer, size_t Buffer_Size)
+{
+    #if defined(ENABLE_DECKLINK) || defined(ENABLE_SIMULATOR)
+    if (IsMatroska)
+    {
+        decklink_frame* Frame=(decklink_frame*)Buffer;
+        for (matroska_output& Output : Outputs)
+        {
+            Output.Writer->write_frame((const char*)Frame->Video_Buffer, Frame->Video_Buffer_Size,
+                                       (const char*)Frame->Audio_Buffer, Frame->Audio_Buffer_Size, Frame->TC);
+        }
         return;
     }
+    #endif
 
     if (File)
     {
