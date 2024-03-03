@@ -17,9 +17,6 @@
     #include "MediaInfo/MediaInfoList.h"
     #define MediaInfoNameSpace MediaInfoLib
 #endif
-#ifndef DISABLE_SIMULATOR
-    #define ENABLE_SIMULATOR
-#endif
 #include "Common/Merge.h"
 #include "TimeCode.h"
 #include "MediaInfo/MediaInfo_Events.h"

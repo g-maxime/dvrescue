@@ -383,8 +383,6 @@ void matroska_writer::write_frame(const char* video_buffer, int video_size, cons
     output->write(buffer, size);
     output_size += size;
     frame_number++;
-
-    cerr << "\33[2K\rCapture frame " << frame_number << ", press " << (InControl ? "q" : "ctrl+c") << " to stop.";
 }
 
 void matroska_writer::close(std::ofstream* output)

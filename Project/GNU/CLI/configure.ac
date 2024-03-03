@@ -51,7 +51,7 @@ AC_ARG_ENABLE(avfctl,           AC_HELP_STRING([--enable-avfctl],           [Bui
 AC_ARG_ENABLE(capture,          AC_HELP_STRING([--enable-capture],          [Use libavc1394 and libdc1394 for capture support on linux]), , enable_capture=yes)
 AC_ARG_ENABLE(decklink,         AC_HELP_STRING([--enable-decklink],         [Enable capture from Blackmagic capture devices]),            , enable_decklink=no)
 AC_ARG_ENABLE(sony9pin,         AC_HELP_STRING([--enable-sony9pin],         [Enable control through Sony9Pin serial interface]),          , enable_sony9pin=no)
-AC_ARG_ENABLE(simulator,        AC_HELP_STRING([--enable-ssimulator],       [Enable capture simulation for testing purposes]),            , enable_simulator=yes)
+AC_ARG_ENABLE(simulator,        AC_HELP_STRING([--enable-simulator],        [Enable capture simulation for testing purposes]),            , enable_simulator=yes)
 
 dnl -------------------------------------------------------------------------
 dnl Arguments - With

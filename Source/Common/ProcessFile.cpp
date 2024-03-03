@@ -423,7 +423,7 @@ void file::Parse(const String& FileName)
             uint32_t SampleRate = 48000;
             uint8_t Channels = 2;
 
-            Wrapper = new FileWrapper(Width, Height, Num, Den, SampleRate, Channels, DeckLinkTimecodeFormat!=Decklink_Timecode_Format_None);
+            Wrapper = new FileWrapper(Width, Height, Num, Den, SampleRate, Channels, DeckLinkTimecodeFormat<Decklink_Timecode_Format_Max);
         }
         else
         #endif

@@ -18,28 +18,8 @@
 #include <DeckLinkAPI.h>
 
 #include "Common/ProcessFileWrapper.h"
+#include "Common/ProcessFile.h"
 #include "Common/Output_Mkv.h"
-
-//***************************************************************************
-// Types
-//***************************************************************************
-
-struct decklink_frames {
-    struct frame {
-        timecode_struct tc;
-        double pts;
-        double dur;
-    };
-
-    uint32_t video_width = 0;
-    uint32_t video_height = 0;
-    uint32_t video_rate_num = 0;
-    uint32_t video_rate_den = 0;
-    uint8_t audio_channels = 0;
-    uint32_t audio_rate = 0;
-
-    std::vector<frame> frames;
-};
 
 //***************************************************************************
 // Class DecklinkWrapper
@@ -66,17 +46,11 @@ class DecklinkWrapper : public BaseWrapper {
         : Name(Name), UUID(UUID) {};
     };
 
-    struct output
-    {
-        matroska_writer* Writer = nullptr;
-        std::ofstream* Output = nullptr;
-    };
-
     // IDeckLinkInputCallback
     class CaptureDelegate : public IDeckLinkInputCallback {
     public:
         // Constructor/Destructor
-        CaptureDelegate(DecklinkWrapper* Wrapper, std::vector<output> Writers, const uint32_t TimecodeFormat);
+        CaptureDelegate(FileWrapper* Wrapper, const uint32_t TimecodeFormat);
 
         // Functions
         ULONG AddRef();
@@ -86,8 +60,7 @@ class DecklinkWrapper : public BaseWrapper {
         HRESULT VideoInputFormatChanged(BMDVideoInputFormatChangedEvents, IDeckLinkDisplayMode*, BMDDetectedVideoInputFormatFlags);
 
     private:
-        DecklinkWrapper* Wrapper;
-        std::vector<output> Writers;
+        FileWrapper* Wrapper;
         uint32_t TimecodeFormat;
     };
 
@@ -143,9 +116,6 @@ class DecklinkWrapper : public BaseWrapper {
     // Attributes
     static const std::string Interface;
 
-    // Results
-    decklink_frames frames;
-
 private:
     playback_mode PlaybackMode = Playback_Mode_NotPlaying;
     bool Capture = false;
@@ -166,7 +136,4 @@ private:
     // Control
     ControllerBaseWrapper* Controller = nullptr;
     IDeckLinkDeckControl* DeckLinkDeckControl = nullptr;
-
-    //Output
-    std::vector<output> Outputs;
 };

@@ -38,6 +38,13 @@ FileWrapper::FileWrapper(int Width, int Height, int Framerate_Num, int Framerate
         }
         Outputs.push_back(Output);
     }
+
+    FramesInfo.video_width = Width;
+    FramesInfo.video_height = Height;
+    FramesInfo.video_rate_num = Framerate_Num;
+    FramesInfo.video_rate_den = Framerate_Den;
+    FramesInfo.audio_rate = SampleRate;
+    FramesInfo.audio_channels = Channels;
 }
 
 //---------------------------------------------------------------------------
@@ -76,6 +83,17 @@ void FileWrapper::Parse_Buffer(const uint8_t *Buffer, size_t Buffer_Size)
             Output.Writer->write_frame((const char*)Frame->Video_Buffer, Frame->Video_Buffer_Size,
                                        (const char*)Frame->Audio_Buffer, Frame->Audio_Buffer_Size, Frame->TC);
         }
+
+
+        double FrameRate = (double)FramesInfo.video_rate_num / FramesInfo.video_rate_den;
+        double ElapsedTime = (double)FramesInfo.frames.size() / FrameRate;
+        FramesInfo.frames.push_back(decklink_framesinfo::frame {
+            Frame->TC,
+            ElapsedTime * 1000000000.0,
+            1.0 / FrameRate
+        });
+
+        cerr << "\33[2K\rCapture frame " << ++FrameCount << ", press " << (InControl ? "q" : "ctrl+c") << " to stop.";
         return;
     }
     #endif
