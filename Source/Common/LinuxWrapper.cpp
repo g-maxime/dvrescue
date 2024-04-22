@@ -7,6 +7,8 @@
 //---------------------------------------------------------------------------
 #include "Common/LinuxWrapper.h"
 
+#include <iostream>
+
 #include <condition_variable>
 #include <ctime>
 #include <queue>
@@ -43,6 +45,7 @@ condition_variable FrameBufferCondition;
 //---------------------------------------------------------------------------
 static int ReceiveFrame(unsigned char* Data, int Lenght, int, void *UserData)
 {
+    cerr << "ReceiveFrame()" << endl;
     const lock_guard<mutex> Lock(ProcessFrameLock);
     LastInput = time(NULL);
 
@@ -65,6 +68,7 @@ const string LinuxWrapper::Interface = "DV";
 //---------------------------------------------------------------------------
 void LinuxWrapper::Init()
 {
+    cerr << "Init()" << endl;
     Devices.clear();
 
     raw1394handle_t Handle = raw1394_new_handle();
@@ -107,6 +111,7 @@ void LinuxWrapper::Init()
 //---------------------------------------------------------------------------
 LinuxWrapper::LinuxWrapper(size_t DeviceIndex)
 {
+    cerr << "LinuxWrapper()" << endl;
     Init();
 
     if (DeviceIndex >= Devices.size())
@@ -142,6 +147,7 @@ LinuxWrapper::LinuxWrapper(size_t DeviceIndex)
 //---------------------------------------------------------------------------
 LinuxWrapper::LinuxWrapper(string DeviceID)
 {
+    cerr << "LinuxWrapper()" << endl;
     Init();
 
     uint64_t ID = stoull(DeviceID, NULL, 16);
@@ -189,6 +195,7 @@ LinuxWrapper::LinuxWrapper(string DeviceID)
 //---------------------------------------------------------------------------
 LinuxWrapper::~LinuxWrapper()
 {
+    cerr << "~LinuxWrapper()" << endl;
     StopCaptureSession();
 
     if (CtlHandle)
@@ -202,6 +209,7 @@ LinuxWrapper::~LinuxWrapper()
 //---------------------------------------------------------------------------
 size_t LinuxWrapper::GetDeviceCount()
 {
+    cerr << "GetDeviceCount()" << endl;
     Init();
 
     return Devices.size();
@@ -210,6 +218,7 @@ size_t LinuxWrapper::GetDeviceCount()
 //---------------------------------------------------------------------------
 string LinuxWrapper::GetDeviceName(size_t DeviceIndex)
 {
+    cerr << "GetDeviceName()" << endl;
     Init();
 
     if (DeviceIndex >= Devices.size())
@@ -221,6 +230,7 @@ string LinuxWrapper::GetDeviceName(size_t DeviceIndex)
 //---------------------------------------------------------------------------
 string LinuxWrapper::GetDeviceName(const string& DeviceID)
 {
+    cerr << "GetDeviceName()" << endl;
     Init();
 
     uint64_t ID = stoull(DeviceID, NULL, 16);
@@ -239,6 +249,7 @@ string LinuxWrapper::GetDeviceName(const string& DeviceID)
 //---------------------------------------------------------------------------
 string LinuxWrapper::GetDeviceID(size_t DeviceIndex)
 {
+    cerr << "GetDeviceID()" << endl;
     Init();
 
     if (DeviceIndex >= Devices.size())
@@ -253,6 +264,7 @@ string LinuxWrapper::GetDeviceID(size_t DeviceIndex)
 //---------------------------------------------------------------------------
 size_t LinuxWrapper::GetDeviceIndex(const string& DeviceID)
 {
+    cerr << "GetDeviceIndex()" << endl;
     Init();
 
     uint64_t ID = stoull(DeviceID, NULL, 16);
@@ -271,6 +283,7 @@ size_t LinuxWrapper::GetDeviceIndex(const string& DeviceID)
 //---------------------------------------------------------------------------
 playback_mode LinuxWrapper::GetMode()
 {
+    cerr << "GetMode()" << endl;
     CtlHandleMutex.lock();
     quadlet_t Status = avc1394_vcr_status(CtlHandle, Node);
     CtlHandleMutex.unlock();
@@ -287,6 +300,7 @@ playback_mode LinuxWrapper::GetMode()
 //---------------------------------------------------------------------------
 std::string LinuxWrapper::GetStatus()
 {
+    cerr << "GetStatus()" << endl;
     if (!CtlHandle || Node == (nodeid_t)-1)
         return "invalid";
 
@@ -335,6 +349,7 @@ std::string LinuxWrapper::GetStatus()
 //---------------------------------------------------------------------------
 float LinuxWrapper::GetSpeed()
 {
+    cerr << "GetSpeed()" << endl;
     // Can't retrive speed from libavc1394, guessing most-plausible value
     if (!CtlHandle || Node == (nodeid_t)-1)
         return 0.0f;
@@ -381,6 +396,7 @@ float LinuxWrapper::GetSpeed()
 //---------------------------------------------------------------------------
 void LinuxWrapper::CreateCaptureSession(FileWrapper* Wrapper_)
 {
+    cerr << "CreateCaptureSession()" << endl;
     Wrapper = Wrapper_;
 
     CaptureHandle = raw1394_new_handle_on_port(Port);
@@ -398,9 +414,11 @@ void LinuxWrapper::CreateCaptureSession(FileWrapper* Wrapper_)
 //---------------------------------------------------------------------------
 void LinuxWrapper::StartCaptureSession()
 {
+    cerr << "StartCaptureSession()" << endl;
     if (Frame && iec61883_dv_fb_start(Frame, Channel) == 0)
     {
         Raw1394PoolingThread = new thread([this]() {
+            cerr << "Raw1394PoolingThread()" << endl;
             struct pollfd Desc = {
                 fd: raw1394_get_fd(CaptureHandle),
                 events: POLLIN | POLLERR | POLLHUP | POLLPRI,
@@ -421,6 +439,7 @@ void LinuxWrapper::StartCaptureSession()
         ProcessFrameThread = new thread([this]() {
             do
             {
+                cerr << "ProcessFrameThread()" << endl;
                 unique_lock Lock(FrameBufferLock);
                 FrameBufferCondition.wait_for(Lock, chrono::milliseconds(100));
                 while (!FrameBuffer.empty())
@@ -442,6 +461,7 @@ void LinuxWrapper::StartCaptureSession()
 //---------------------------------------------------------------------------
 void LinuxWrapper::StopCaptureSession()
 {
+    cerr << "StopCaptureSession()" << endl;
     // TODO: Separate Stop/Destroy logics
     if (Raw1394PoolingThread)
     {
@@ -504,6 +524,7 @@ void LinuxWrapper::StopCaptureSession()
 //---------------------------------------------------------------------------
 bool LinuxWrapper::WaitForSessionEnd(uint64_t Timeout)
 {
+    cerr << "WaitForSessionEnd()" << endl;
     LastInput = time(NULL);
     do
     {
@@ -536,6 +557,7 @@ int LinuxWrapper::Raw1394ControlBusResetHandler(raw1394handle_t Handle, unsigned
 //---------------------------------------------------------------------------
 void LinuxWrapper::SetPlaybackMode(playback_mode Mode, float Speed)
 {
+    cerr << "SetPlaybackMode()" << endl;
     if (!CtlHandle || Node == (nodeid_t)-1)
         return;
 
