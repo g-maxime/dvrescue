@@ -273,6 +273,7 @@ DecklinkWrapper::DecklinkWrapper(size_t DeviceIndex,
                                  decklink_video_mode Mode,
                                  decklink_video_source VideoSrc,
                                  decklink_audio_source AudioSrc,
+                                 decklink_pixel_format PixelFormat,
                                  decklink_timecode_format TimecodeFormat,
                                  ControllerBaseWrapper* Controller,
                                  bool Native) : Controller(Controller)
@@ -298,6 +299,7 @@ DecklinkWrapper::DecklinkWrapper(size_t DeviceIndex,
     DeckLinkVideoMode = decklink_video_modes[Mode < Decklink_Video_Mode_Max ? Mode : Decklink_Video_Mode_NTSC];
     DeckLinkVideoSource = decklink_video_sources[VideoSrc < Decklink_Video_Source_Max ? VideoSrc : Decklink_Video_Source_SDI];
     DeckLinkAudioSource = decklink_audio_sources[AudioSrc < Decklink_Audio_Source_Max ? AudioSrc : Decklink_Audio_Source_Embedded];
+    DeckLinkPixelFormat = decklink_pixel_formats[PixelFormat < Decklink_Pixel_Format_Max ? PixelFormat : Decklink_Pixel_Format_10BitYUV];
     DeckLinkTimecodeFormat = TimecodeFormat < Decklink_Timecode_Format_Max ? decklink_timecode_formats[TimecodeFormat] : (uint32_t)-1;
 
     if (!Controller && Native)
@@ -345,6 +347,7 @@ DecklinkWrapper::DecklinkWrapper(string DeviceID,
                                  decklink_video_mode Mode,
                                  decklink_video_source VideoSrc,
                                  decklink_audio_source AudioSrc,
+                                 decklink_pixel_format PixelFormat,
                                  decklink_timecode_format TimecodeFormat,
                                  ControllerBaseWrapper* Controller,
                                  bool Native) : Controller(Controller)
@@ -382,6 +385,7 @@ DecklinkWrapper::DecklinkWrapper(string DeviceID,
     DeckLinkVideoMode = decklink_video_modes[Mode < Decklink_Video_Mode_Max ? Mode : Decklink_Video_Mode_NTSC];
     DeckLinkVideoSource = decklink_video_sources[VideoSrc < Decklink_Video_Source_Max ? VideoSrc : Decklink_Video_Source_SDI];
     DeckLinkAudioSource = decklink_audio_sources[AudioSrc < Decklink_Audio_Source_Max ? AudioSrc : Decklink_Audio_Source_Embedded];
+    DeckLinkPixelFormat = decklink_pixel_formats[PixelFormat < Decklink_Pixel_Format_Max ? PixelFormat : Decklink_Pixel_Format_10BitYUV];
     DeckLinkTimecodeFormat = TimecodeFormat < Decklink_Timecode_Format_Max ? decklink_timecode_formats[TimecodeFormat] : (uint32_t)-1;
 
     if (!Controller && Native)
@@ -585,7 +589,7 @@ void DecklinkWrapper::CreateCaptureSession(FileWrapper* Wrapper_)
     bool VideoModeIsSupported = false;
     if (DeckLinkInput->DoesSupportVideoMode(DeckLinkVideoSource,
                                             DeckLinkVideoMode,
-                                            bmdFormat10BitYUV,
+                                            DeckLinkPixelFormat,
                                             bmdNoVideoInputConversion,
                                             bmdVideoInputFlagDefault,
                                             NULL,
@@ -617,7 +621,7 @@ void DecklinkWrapper::CreateCaptureSession(FileWrapper* Wrapper_)
     uint8_t Channels = 2;
     DeckLinkCaptureDelegate = new CaptureDelegate(Wrapper_, DeckLinkTimecodeFormat);
 
-    if (DeckLinkInput->EnableVideoInput(DeckLinkVideoMode, bmdFormat10BitYUV, bmdVideoInputFlagDefault) != S_OK ||
+    if (DeckLinkInput->EnableVideoInput(DeckLinkVideoMode, DeckLinkPixelFormat, bmdVideoInputFlagDefault) != S_OK ||
         DeckLinkInput->EnableAudioInput(bmdAudioSampleRate48kHz, bmdAudioSampleType32bitInteger, Channels) != S_OK ||
         DeckLinkInput->SetCallback(DeckLinkCaptureDelegate) != S_OK)
     {

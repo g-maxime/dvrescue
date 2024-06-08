@@ -519,6 +519,27 @@ return_value Parse(Core &C, int argc, const char* argv_ansi[], const MediaInfoNa
                 continue;
             }
         }
+        else if (!strcmp(argv_ansi[i], "--decklink-pixel-format"))
+        {
+            if (++i >= argc)
+            {
+                if (C.Err)
+                    *C.Err << "Error: missing pixel format after " << argv_ansi[i - 1] << ".\n";
+                ReturnValue = ReturnValue_ERROR;
+                continue;
+            }
+            if (!strcmp(argv_ansi[i], "uyvy"))
+                DeckLinkPixelFormat = 1;
+            else if (!strcmp(argv_ansi[i], "v210"))
+                DeckLinkPixelFormat = 2;
+            else
+            {
+                if (C.Err)
+                    *C.Err << "Error: unknown decklink pixel format " << argv_ansi[i] << ".\n";
+                ReturnValue = ReturnValue_ERROR;
+                continue;
+            }
+        }
         else if (!strcmp(argv_ansi[i], "--decklink-timecode-format"))
         {
             if (++i >= argc)
@@ -549,7 +570,7 @@ return_value Parse(Core &C, int argc, const char* argv_ansi[], const MediaInfoNa
             else
             {
                 if (C.Err)
-                    *C.Err << "Error: unknown decklink audio source " << argv_ansi[i] << ".\n";
+                    *C.Err << "Error: unknown decklink timecode format " << argv_ansi[i] << ".\n";
                 ReturnValue = ReturnValue_ERROR;
                 continue;
             }

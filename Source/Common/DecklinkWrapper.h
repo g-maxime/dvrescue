@@ -85,6 +85,7 @@ class DecklinkWrapper : public BaseWrapper {
                     decklink_video_mode Mode = Decklink_Video_Mode_NTSC,
                     decklink_video_source VideoSrc = Decklink_Video_Source_Composite,
                     decklink_audio_source AudioSrc = Decklink_Audio_Source_Analog,
+                    decklink_pixel_format PixelFormat = Decklink_Pixel_Format_10BitYUV,
                     decklink_timecode_format TimecodeFormat = Decklink_Timecode_Format_VITC,
                     ControllerBaseWrapper* Controller = nullptr,
                     bool Native = false);
@@ -92,6 +93,7 @@ class DecklinkWrapper : public BaseWrapper {
                     decklink_video_mode Mode = Decklink_Video_Mode_NTSC,
                     decklink_video_source VideoSrc = Decklink_Video_Source_Composite,
                     decklink_audio_source AudioSrc = Decklink_Audio_Source_Analog,
+                    decklink_pixel_format PixelFormat = Decklink_Pixel_Format_10BitYUV,
                     decklink_timecode_format TimecodeFormat = Decklink_Timecode_Format_VITC,
                     ControllerBaseWrapper* Controller = nullptr,
                     bool Native = false);
@@ -131,6 +133,7 @@ private:
     uint32_t DeckLinkVideoMode;
     uint32_t DeckLinkVideoSource;
     uint32_t DeckLinkAudioSource;
+    uint32_t DeckLinkPixelFormat;
     uint32_t DeckLinkTimecodeFormat;
 
     // Control
