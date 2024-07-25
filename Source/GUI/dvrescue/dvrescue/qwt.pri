@@ -1,4 +1,5 @@
 USE_BREW = $$(USE_BREW)
+USE_SYSTEM = $$(USE_SYSTEM)
 
 macx:!isEmpty(USE_BREW):equals(USE_BREW, true) {
     message("use qwt from brew")
@@ -10,7 +11,12 @@ macx:!isEmpty(USE_BREW):equals(USE_BREW, true) {
     include ( $$system(brew --prefix qwt)/features/qwt.prf )
 
     CONFIG += link_pkgconfig
-} else {
+}
+else:unix:!isEmpty(USE_SYSTEM):equals(USE_SYSTEM, true) {
+    message("use system qwt through qt")
+    CONFIG += qwt release
+}
+else {
 
     QWT_ROOT = $$(QWT_ROOT)
     isEmpty(QWT_ROOT) {

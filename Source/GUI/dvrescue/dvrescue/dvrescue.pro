@@ -1,4 +1,7 @@
-QT += qml quick widgets quickcontrols2 multimedia
+QT += qml quick widgets quickcontrols2 multimedia svg
+macx {
+    QT+= concurrent
+}
 
 CONFIG += c++17
 
@@ -13,6 +16,10 @@ macx {
 
 win32 {
     RC_ICONS = icons/icon.ico
+}
+
+linux {
+    DEFINES += STATIC
 }
 
 SOURCES += main.cpp

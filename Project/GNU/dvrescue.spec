@@ -26,20 +26,22 @@ BuildRequires:  autoconf
 BuildRequires:  libtool
 BuildRequires:	libmediainfo-devel >= %libmediainfo_version
 BuildRequires:	libzen-devel >= %libzen_version
+%if ! 0%{?rhel}
 BuildRequires:	libraw1394-devel
 BuildRequires:	libavc1394-devel
 BuildRequires:	libiec61883-devel
+%endif
 BuildRequires:	zlib-devel
 Requires:		xmlstarlet
+
+%if 0%{?rhel} >= 8
+BuildRequires:  alternatives
+%endif
 
 %if 0%{?fedora_version} >= 33
 %global build_gui 1
 %else
 %global build_gui 0
-%endif
-
-%if 0%{?rhel_version} >= 800 || 0%{?centos_version} >= 800
-BuildRequires:  gdb
 %endif
 
 %if 0%{?mageia}
@@ -57,7 +59,7 @@ Group:		Productivity/Multimedia/Other
 
 BuildRequires:  nasm
 BuildRequires:  libXv-devel
-%if 0%{?fedora_version} || 0%{?centos} >= 7
+%if 0%{?fedora_version} || 0%{?rhel}
 BuildRequires:  pkgconfig(Qt5)
 BuildRequires:  pkgconfig(Qt5QuickControls2)
 BuildRequires:  pkgconfig(Qt5Svg)
@@ -136,8 +138,8 @@ export CXXFLAGS="-g $RPM_OPT_FLAGS"
 pushd dvrescue/Project/GNU/CLI
 	%__chmod +x autogen
 	./autogen
-	%if 0%{?mageia} >= 6
-		%configure --disable-dependency-tracking
+	%if 0%{?rhel}
+		%configure --disable-capture
 	%else
 		%configure
 	%endif

@@ -178,6 +178,9 @@ Section Uninstall
   Delete "$INSTDIR\scripts\xml.sh"
   RMDir  "$INSTDIR\scripts"
 
+  ; Old QtAVPlayer files
+  Delete "$INSTDIR\QtAVPlayer.dll"
+
   ; Old QtAV files
   Delete "$INSTDIR\QtAVPlayer.dll"
   Delete "$INSTDIR\QtAV1.dll"

@@ -1,7 +1,7 @@
 # $Id$
 # Maintainer: MediaArea.net SARL <Info@MediaArea.net>
 
-pkgname=('dvrescue')
+pkgname=('dvrescue' 'dvrescue-gui')
 pkgver=24.07
 pkgrel=1
 pkgdesc="Supplies technical and tag information about a video or audio file"
@@ -61,12 +61,9 @@ package_dvrescue-gui() {
     install -D -m 0755 "${srcdir}"/dvrescue/dvrescue/Source/GUI/dvrescue/build/dvrescue/dvrescue "${pkgdir}"/usr/bin/dvrescue-gui
     install -D -m 0644 "${srcdir}"/dvrescue/dvrescue/LICENSE.txt "${pkgdir}"/usr/share/licenses/${pkgname}/LICENSE.txt
     install -D -m 0644 "${srcdir}"/dvrescue/dvrescue/History.txt "${pkgdir}"/usr/share/doc/${pkgname}/History.txt
-
-
     install -D -m 0755 "${srcdir}"/dvrescue/ffmpeg/ffmpeg "${pkgdir}"/usr/lib/dvrescue/bin/ffmpeg
     install -D -m 0755 "${srcdir}"/dvrescue/dvrescue/Project/GNU/CLI/dvrescue "${pkgdir}"/usr/lib/dvrescue/bin/dvrescue
     install -D -m 0755 "${srcdir}"/dvrescue/MediaInfo/Project/GNU/CLI/mediainfo "${pkgdir}"/usr/lib/dvrescue/bin/mediainfo
-
     install -D -m 0644 "${srcdir}"/dvrescue/dvrescue/Source/GUI/dvrescue/dvrescue/icons/icon.png "${pkgdir}"/usr/share/pixmaps/dvrescue.png
     install -D -m 0644 "${srcdir}"/dvrescue/dvrescue/Project/GNU/GUI/dvrescue-gui.desktop "${pkgdir}"/usr/share/applications/dvrescue-gui.desktop
     install -D -m 0644 "${srcdir}"/dvrescue/dvrescue/Project/GNU/GUI/dvrescue-gui.metainfo.xml "${pkgdir}"/usr/share/metainfo/dvrescue-gui.metainfo.xml
