@@ -36,10 +36,11 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 include(./dvrescue.pri)
-include(../ffmpeg.pri)
 
 DEFINES += QT_AVPLAYER_MULTIMEDIA
 INCLUDEPATH += ../dvrescue-QtAVPlayer/src
 include(../dvrescue-QtAVPlayer/src/QtAVPlayer/QtAVPlayer.pri)
+
+include(../ffmpeg.pri)
 
 message('QMAKE_POST_LINK: ' $${QMAKE_POST_LINK})

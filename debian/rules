@@ -22,7 +22,6 @@ configure-stamp:
 	cd MediaInfoLib/Project/GNU/Library && $(MAKE)
 	cd MediaInfo/Project/GNU/CLI && ./configure --enable-staticlibs
 	cd MediaInfo/Project/GNU/CLI && $(MAKE)
-#	cd xmlstarlet && ./configure
 
 	mkdir -p dvrescue/Source/GUI/dvrescue/build
 	cd dvrescue/Source/GUI/dvrescue/build && qmake .. BINDIR=/usr/bin

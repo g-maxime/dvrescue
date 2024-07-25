@@ -70,6 +70,9 @@ macx:!isEmpty(USE_BREW):equals(USE_BREW, true) {
     INCLUDEPATH += $$FFMPEG_INCLUDES
     LIBS += $$FFMPEG_LIBS
 
+    unix:!macx:LIBS -= -lfreetype
+    unix:!macx:LIBS *= -lfreetype
+
     message('ffmpeg.pri INCLUDEPATH: ' $$INCLUDEPATH)
     message('ffmpeg.pri LIBS: ' $$LIBS)
 }

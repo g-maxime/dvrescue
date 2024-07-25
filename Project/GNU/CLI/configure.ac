@@ -24,11 +24,12 @@ dnl Autotools init
 dnl
 CFLAGS="$CFLAGS"
 CXXFLAGS="-std=c++17 $CXXFLAGS"
+
+LT_INIT
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_OBJC
 AC_PROG_OBJCXX
-AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 
 dnl #########################################################################
