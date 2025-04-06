@@ -72,36 +72,33 @@ void LinuxWrapper::Init()
         throw error("unable to create raw1394 handle");
 
     int Ports = raw1394_get_port_info(Handle, nullptr, 0);
-    raw1394_destroy_handle(Handle);
-
     for (int Port = 0; Port < Ports; Port++)
     {
-         Handle = raw1394_new_handle_on_port(Port);
-         if (!Handle)
-             continue;
+        raw1394handle_t PortHandle = raw1394_new_handle_on_port(Port);
+        if (!PortHandle)
+            continue;
 
-         int Nodes = raw1394_get_nodecount(Handle);
-         for (int Node = 0; Node < Nodes - 1 /* last node is the control node */; Node++)
-         {
-             rom1394_directory Directory;
-             if (rom1394_get_directory(Handle, Node, &Directory) >= 0 &&
-                 rom1394_get_node_type(&Directory) == ROM1394_NODE_TYPE_AVC &&
-                 avc1394_check_subunit_type(Handle, Node, AVC1394_SUBUNIT_TYPE_VCR))
-             {
-                 rom1394_get_directory(Handle, Node, &Directory);
-                 //TODO: it is mapping standard?
-                 string Vendor = Directory.nr_textual_leafs > 0 ? Directory.textual_leafs[0] : "Unknown vendor";
-                 string Model = Directory.nr_textual_leafs > 1 ? Directory.textual_leafs[1] : "Unknown model";
-                 octlet_t UUID = rom1394_get_guid(Handle, Node);
+        int Nodes = raw1394_get_nodecount(PortHandle);
+        for (int Node = 0; Node < Nodes - 1 /* last node is the control node */; Node++)
+        {
+            rom1394_directory Directory;
+            if (rom1394_get_directory(PortHandle, Node, &Directory) < 0)
+                continue;
 
-                 Devices.push_back(device(Port, (nodeid_t)Node, UUID, Vendor, Model));
-                 rom1394_free_directory(&Directory);
-                 break; //TODO: Handle more than one vcr device per port?
-             }
-             rom1394_free_directory(&Directory);
+            if (rom1394_get_node_type(&Directory) == ROM1394_NODE_TYPE_AVC &&
+                avc1394_check_subunit_type(PortHandle, Node, AVC1394_SUBUNIT_TYPE_VCR))
+            {
+                string Vendor = Directory.nr_textual_leafs > 0 ? Directory.textual_leafs[0] : "Unknown vendor";
+                string Model = Directory.nr_textual_leafs > 1 ? Directory.textual_leafs[1] : "Unknown model";
+                octlet_t UUID = rom1394_get_guid(PortHandle, Node);
+
+                Devices.push_back(device(Port, (nodeid_t)Node, UUID, Vendor, Model));
+            }
+            rom1394_free_directory(&Directory);
         }
-        raw1394_destroy_handle(Handle);
+        raw1394_destroy_handle(PortHandle);
     }
+    raw1394_destroy_handle(Handle);
 }
 
 //---------------------------------------------------------------------------
