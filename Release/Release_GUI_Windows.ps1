@@ -50,10 +50,17 @@ Push-Location "${release_directory}"
     Push-Location -Path "dvrescue_GUI_${version}_Windows_${arch}"
         Copy-Item -Force -Path "${release_directory}\xmlstarlet-1.6.1\xml.exe" .
         Copy-Item -Force -Path "${release_directory}\..\..\ffmpeg\ffmpeg.exe" .
+<<<<<<< HEAD
         Copy-Item -Force -Path "${release_directory}\..\..\MediaInfo\Project\MSVC2022\x64\Release\MediaInfo.exe" .
         Copy-Item -Force -Path "${release_directory}\..\History.txt" .
         Copy-Item -Force -Path "${release_directory}\..\LICENSE.txt" .
         Copy-Item -Force -Path "${release_directory}\..\Project\MSVC2022\x64\Release\DVRescue.exe" .
+=======
+        Copy-Item -Force -Path "${release_directory}\..\..\MediaInfo\Project\MSVC2022\x64\Release\mediainfo.exe" .
+        Copy-Item -Force -Path "${release_directory}\..\History.txt" .
+        Copy-Item -Force -Path "${release_directory}\..\LICENSE.txt" .
+        Copy-Item -Force -Path "${release_directory}\..\Project\MSVC2022\x64\Release\dvrescue.exe" .
+>>>>>>> 916b258 (Windows build scripts)
         Copy-Item -Force -Path "${release_directory}\..\Source\GUI\dvrescue\build\dvrescue\release\dvrescue.exe" dvrescue-gui.exe
         Copy-Item -Force -Path "${release_directory}\..\Source\GUI\dvrescue\build\dvrescue\release\qwt.dll" .
         Copy-Item -Path "${Env:VCToolsRedistDir}\${arch}\Microsoft.VC143.CRT\concrt140.dll" .
